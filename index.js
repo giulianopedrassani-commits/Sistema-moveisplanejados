@@ -3,19 +3,19 @@ require('dotenv').config(); // PRIMEIRA LINHA
 const express = require('express');
 const app = express();
 const { poolPromise } = require('./src/config/db'); // Conexão com SQL Server
-const logger = require('./src/logger/logger'); // Winston logger
+// const logger = require('./src/logger/logger'); // Winston logger
 
 // Middlewares
-app.use(express.json()); // middleware de parsing deve vir primeiro
+//app.use(express.json()); // middleware de parsing deve vir primeiro
 
 // Rotas
-const testeRoutes = require('./routes/testeRoutes');
-app.use('/api', testeRoutes);
+//const testeRoutes = require('./routes/testeRoutes');
+//app.use('/api', testeRoutes);
 // aqui você pode importar authRoutes, moveisRoutes, etc.
 
 // Middleware global de erros (SEM DUPLICAÇÃO)
-const errorHandler = require('./middlewares/errorHandler');
-app.use(errorHandler); // sempre por último
+//const errorHandler = require('./middlewares/errorHandler');
+//app.use(errorHandler); // sempre por último
 
 // Porta do servidor
 const PORT = process.env.PORT || 3000;
