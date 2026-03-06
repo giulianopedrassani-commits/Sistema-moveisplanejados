@@ -245,3 +245,12 @@ Ajustes no Logger: Implementação do sistema de logs estruturados com Winston p
 Validação Global de Erros: Implementação de uma resposta padronizada para erros no sistema.
 
 Expansão Futura: Implementação de novas funcionalidades como proteção de rotas com JWT, logging mais detalhado e validação de dados.
+
+Changelog - Atualização 2026-03-06
+
+Data	Versão	Mudanças Principais
+2026-03-06	0.1.0	🔹 Conexão com SQL Server revisada e padronizada (apenas app_user)
+🔹 Pool de conexão funcionando ✅
+🔹 Estrutura de .env consolidada
+🔹 Index.js testado com logs de sucesso
+🔹 Logger em revisão, será ajustado amanhã
