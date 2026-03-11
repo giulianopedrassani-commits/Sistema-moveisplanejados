@@ -93,7 +93,7 @@ exports.update = async (req, res) => {
   try {
     const pool = await poolPromise;
 
-    await pool.request()
+    const result = await pool.request()
       .input('id', sql.Int, id)
       .input('nome', sql.VarChar, nome)
       .input('cpf', sql.VarChar, cpf || null)
@@ -109,6 +109,10 @@ exports.update = async (req, res) => {
             endereco = @endereco
         WHERE id_cliente = @id
       `);
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(404).json({ error: 'Cliente não encontrado' });
+    }
 
     res.json({ message: 'Cliente atualizado com sucesso' });
 
@@ -127,9 +131,13 @@ exports.remove = async (req, res) => {
   try {
     const pool = await poolPromise;
 
-    await pool.request()
+    const result = await pool.request()
       .input('id', sql.Int, id)
       .query('DELETE FROM clientes WHERE id_cliente = @id');
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(404).json({ error: 'Cliente não encontrado' });
+    }
 
     res.json({ message: 'Cliente removido com sucesso' });
 

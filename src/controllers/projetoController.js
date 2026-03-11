@@ -1,49 +1,152 @@
 const { poolPromise, sql } = require('../config/db');
 
+// ==========================
 // CREATE
+// ==========================
 exports.create = async (req, res) => {
-  const {
-  id_cliente,
-  data_criacao,
-  status_projeto,
-  valor_total,
-  prazo_entrega
-} = req.body || {};
+  const { id_cliente, nome, descricao } = req.body;
+
+  if (!id_cliente || !nome) {
+    return res.status(400).json({ error: 'Cliente e nome são obrigatórios' });
+  }
 
   try {
     const pool = await poolPromise;
 
-    await pool.request()
+    const result = await pool.request()
       .input('id_cliente', sql.Int, id_cliente)
-      .input('data_criacao', sql.Date, data_criacao)
-      .input('status_projeto', sql.VarChar(50), status_projeto)
-      .input('valor_total', sql.Decimal(10, 2), valor_total || null)
-      .input('prazo_entrega', sql.Date, prazo_entrega || null)
+      .input('nome', sql.VarChar, nome)
+      .input('descricao', sql.VarChar, descricao || null)
       .query(`
-        INSERT INTO projeto
-        (id_cliente, data_criacao, status_projeto, valor_total, prazo_entrega)
-        VALUES
-        (@id_cliente, @data_criacao, @status_projeto, @valor_total, @prazo_entrega)
+        INSERT INTO projetos (id_cliente, nome, descricao)
+        OUTPUT INSERTED.id_projeto
+        VALUES (@id_cliente, @nome, @descricao)
       `);
 
-    res.status(201).json({ message: 'Projeto criado com sucesso' });
+    res.status(201).json({
+      message: 'Projeto criado com sucesso',
+      id: result.recordset[0].id_projeto
+    });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erro ao criar projeto' });
+    console.error('Erro ao criar projeto:', err);
+    res.status(500).json({ error: err.message });
   }
 };
 
-// LISTAR
+// ==========================
+// READ ALL
+// ==========================
 exports.findAll = async (req, res) => {
   try {
     const pool = await poolPromise;
+
     const result = await pool.request()
-      .query('SELECT * FROM projeto');
+      .query(`
+        SELECT p.*, c.nome as cliente_nome
+        FROM projetos p
+        JOIN clientes c ON c.id_cliente = p.id_cliente
+        ORDER BY p.id_projeto DESC
+      `);
 
     res.json(result.recordset);
 
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao listar projetos' });
+    console.error('Erro ao listar projetos:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ==========================
+// READ BY ID
+// ==========================
+exports.findById = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .query(`
+        SELECT p.*, c.nome as cliente_nome
+        FROM projetos p
+        JOIN clientes c ON c.id_cliente = p.id_cliente
+        WHERE p.id_projeto = @id
+      `);
+
+    if (!result.recordset.length) {
+      return res.status(404).json({ error: 'Projeto não encontrado' });
+    }
+
+    res.json(result.recordset[0]);
+
+  } catch (err) {
+    console.error('Erro ao buscar projeto:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ==========================
+// UPDATE
+// ==========================
+exports.update = async (req, res) => {
+  const { id } = req.params;
+  const { id_cliente, nome, descricao } = req.body;
+
+  if (!id_cliente || !nome) {
+    return res.status(400).json({ error: 'Cliente e nome são obrigatórios' });
+  }
+
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .input('id_cliente', sql.Int, id_cliente)
+      .input('nome', sql.VarChar, nome)
+      .input('descricao', sql.VarChar, descricao || null)
+      .query(`
+        UPDATE projetos
+        SET id_cliente = @id_cliente,
+            nome = @nome,
+            descricao = @descricao
+        WHERE id_projeto = @id
+      `);
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(404).json({ error: 'Projeto não encontrado' });
+    }
+
+    res.json({ message: 'Projeto atualizado com sucesso' });
+
+  } catch (err) {
+    console.error('Erro ao atualizar projeto:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ==========================
+// DELETE
+// ==========================
+exports.remove = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .query('DELETE FROM projetos WHERE id_projeto = @id');
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(404).json({ error: 'Projeto não encontrado' });
+    }
+
+    res.json({ message: 'Projeto removido com sucesso' });
+
+  } catch (err) {
+    console.error('Erro ao remover projeto:', err);
+    res.status(500).json({ error: err.message });
   }
 };

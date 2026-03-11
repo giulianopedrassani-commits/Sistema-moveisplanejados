@@ -254,3 +254,70 @@ Data	Versão	Mudanças Principais
 🔹 Estrutura de .env consolidada
 🔹 Index.js testado com logs de sucesso
 🔹 Logger em revisão, será ajustado amanhã
+
+2026-03-09
+Adicionado
+
+Estrutura inicial da API Node.js com Express
+
+Sistema de autenticação JWT
+
+Middleware de autenticação
+
+Serviço de autenticação (authService)
+
+Rotas de autenticação (/auth/login, /auth/me)
+
+Sistema de logs com Winston
+
+Configuração de variáveis de ambiente com dotenv
+
+Conexão com SQL Server utilizando mssql
+
+Melhorias
+
+Organização do projeto em arquitetura modular
+
+Implementação de helpers para respostas padronizadas
+
+Estrutura de logs em arquivos (combined, error, exceptions)
+
+Testes realizados
+
+Teste de conexão com SQL Server
+
+Teste de execução do servidor Express
+
+Teste inicial de rotas de autenticação
+
+Em andamento
+
+Ajuste da conexão Node.js com SQL Server
+
+Testes de autenticação JWT
+
+Validação de rotas protegidas
+
+Próximos passos
+
+Correção e validação do fluxo JWT
+
+Implementação do CRUD de clientes
+
+Integração com banco de dados real
+
+
+
+11/03/2026
+
+Inicializado servidor Node.js com Express.
+
+Configurado dotenv para variáveis de ambiente.
+
+Criada rota inicial / funcionando.
+
+Middleware express.json() adicionado para manipulação de JSON.
+
+Servidor confirmado rodando na porta 3000.
+
+Preparação da base para implementação do CRUD.

@@ -585,6 +585,153 @@ Você verá a resposta:
   }
 }
 
+Atualização 2026-03-06
+
+Descrição
+
+Sistema backend para gerenciamento de móveis planejados, com autenticação JWT e CRUD completo de clientes, projetos, ambientes e móveis.
+
+Tecnologias
+
+Node.js + Express
+
+SQL Server via mssql (tedious)
+
+JWT para autenticação
+
+bcrypt para hash de senhas
+
+Winston (em revisão) para logging
+
+Estrutura MVC (Models, Services, Controllers, Routes)
+
+Variáveis de ambiente via .env
+
+Instalação
+
+Clone o repositório:
+
+git clone <seu-repositorio>
+cd Sistema-moveisplanejados
+
+Instale dependências:
+
+npm install
+
+Configure o .env:
+
+DB_USER=app_user
+DB_PASSWORD=123456
+DB_NAME=LojaMoveisPlanejados
+DB_SERVER=localhost\SQLEXPRESS
+DB_PORT=1433
+JWT_SECRET=chave_super_ultra_secreta_muito_grande_aqui
+PORT=3000
+
+Inicie o servidor:
+
+node index.js
+
+Você verá:
+
+Conectado ao SQL Server ✅
+Conexão com o banco estabelecida ✅
+🚀 Servidor rodando na porta 3000
+Estrutura de Pastas
+src/
+ ├─ config/         -> db.js (conexão SQL)
+ ├─ controllers/    -> Lógica dos endpoints
+ ├─ services/       -> Regras de negócio
+ ├─ models/         -> Estruturas de dados
+ ├─ routes/         -> Rotas do Express
+ ├─ middlewares/    -> JWT, tratamento de erros
+ └─ logger/         -> Winston (em revisão)
+Endpoints Principais
+
+POST /auth/login → autenticação e geração de token JWT
+
+GET /clientes → retorna lista de clientes (protegido)
+
+POST /clientes → cria novo cliente (protegido)
+
+Rotas para Projetos, Ambientes, Móveis → CRUD completo (protegido)
+
+
+Registro de Desenvolvimento – 09/03/2026
+
+Hoje foram realizados avanços na estrutura inicial da API do sistema de móveis planejados.
+
+O que foi feito
+
+Criação da estrutura inicial do backend com Node.js e Express
+
+Configuração do arquivo .env para variáveis de ambiente
+
+Implementação da conexão com SQL Server usando o driver mssql
+
+Configuração do logger com Winston para registrar logs da aplicação
+
+Criação das rotas de autenticação
+
+Implementação inicial de autenticação com JWT
+
+Criação de middleware de autenticação
+
+Estruturação das pastas do projeto (routes, services, middlewares, utils, logger, config)
+
+Testes iniciais de inicialização do servidor
+
+Testes de conexão com o banco de dados
+
+Rotas criadas
+
+POST /auth/login
+GET /auth/me (rota protegida)
+
+Status atual
+
+Servidor Express inicializando
+
+Conexão com SQL Server configurada
+
+Autenticação JWT em fase de testes
+
+Próximos passos
+
+Testar e corrigir validação de token JWT
+
+Implementar CRUD inicial (clientes)
+
+Integrar rotas com o banco de dados
+
+Observação
+
+O desenvolvimento está sendo realizado com apoio de outro programador para acelerar testes e validações do backend.
+
+Descrição
+
+Servidor básico configurado para o projeto de móveis planejados. Backend iniciado com Node.js, Express e dotenv, pronto para implementar o CRUD.
+
+Funcionalidades atuais
+
+Servidor rodando na porta 3000.
+
+Rota inicial / retorna API funcionando 🚀.
+
+Middleware express.json() adicionado para processar JSON.
+
+Variáveis de ambiente carregadas via dotenv.
+
+Próximos passos
+
+Criar endpoints CRUD (Create, Read, Update, Delete).
+
+Conectar ao banco de dados (SQL Server ou MySQL).
+
+Adicionar validações e tratamento de erros.
+
+Testar rotas com Postman ou Insomnia.
+
 
 👨‍💻 Autor
 

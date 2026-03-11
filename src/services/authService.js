@@ -4,16 +4,31 @@ require('dotenv').config();
 
 const SECRET = process.env.JWT_SECRET || 'segredo123';
 
-// Usuário fictício para exemplo
-const fakeUser = { id: 1, email: 'teste@dominio.com', senha: '$2b$10$ABC...' };
+// senha: 123456
+const fakeUser = {
+    id: 1,
+    email: 'teste@dominio.com',
+    senha: '$2b$10$EIXhZsC9WqvOB0fOkHn84u2qxd6QbaO5jM90oCbGyF/F7fs/3Gz5a'
+};
 
 async function login({ email, senha }) {
-    if (email !== fakeUser.email) throw new Error('Usuário não encontrado');
+
+    if (email !== fakeUser.email) {
+        throw new Error('Usuário não encontrado');
+    }
 
     const match = await bcrypt.compare(senha, fakeUser.senha);
-    if (!match) throw new Error('Senha incorreta');
 
-    const token = jwt.sign({ id: fakeUser.id, email: fakeUser.email }, SECRET, { expiresIn: '1h' });
+    if (!match) {
+        throw new Error('Senha incorreta');
+    }
+
+    const token = jwt.sign(
+        { id: fakeUser.id, email: fakeUser.email },
+        SECRET,
+        { expiresIn: '1h' }
+    );
+
     return { token };
 }
 
