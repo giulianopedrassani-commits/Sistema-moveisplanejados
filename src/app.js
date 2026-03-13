@@ -2,10 +2,9 @@ const express = require('express');
 const app = express();
 
 // ==========================
-// MIDDLEWARES
+// CONFIG EXPRESS
 // ==========================
-const authMiddleware = require('./middlewares/authMiddleware');
-const errorMiddleware = require('./middlewares/errorMiddleware');
+app.use(express.json());
 
 // ==========================
 // ROUTES
@@ -17,22 +16,22 @@ const ambienteRoutes = require('./routes/ambienteRoutes');
 const moveisRoutes = require('./routes/moveisRoutes');
 
 // ==========================
-// CONFIG EXPRESS
+// MIDDLEWARE DE AUTENTICAÇÃO
 // ==========================
-app.use(express.json());
+const authMiddleware = require('./middlewares/authMiddleware');
 
 // ==========================
 // ROTAS PÚBLICAS
 // ==========================
-app.use('/auth', authRoutes);
+app.use('/auth', authRoutes); // A rota de login permanece pública
 
 // ==========================
-// ROTAS PROTEGIDAS (JWT)
+// ROTAS CRUD PROTEGIDAS COM JWT
 // ==========================
-app.use('/clientes', authMiddleware, clienteRoutes);
-app.use('/projetos', authMiddleware, projetoRoutes);
-app.use('/ambientes', authMiddleware, ambienteRoutes);
-app.use('/moveis', authMiddleware, moveisRoutes);
+app.use('/clientes', authMiddleware, clienteRoutes);   // Rota de clientes protegida
+app.use('/projetos', authMiddleware, projetoRoutes);   // Rota de projetos protegida
+app.use('/ambientes', authMiddleware, ambienteRoutes); // Rota de ambientes protegida
+app.use('/moveis', authMiddleware, moveisRoutes);      // Rota de móveis protegida
 
 // ==========================
 // ROTA TESTE API
@@ -42,11 +41,6 @@ app.get('/', (req, res) => {
 });
 
 // ==========================
-// MIDDLEWARE GLOBAL DE ERRO
-// ==========================
-app.use(errorMiddleware);
-
-// ==========================
-// EXPORT APP
+// EXPORT
 // ==========================
 module.exports = app;

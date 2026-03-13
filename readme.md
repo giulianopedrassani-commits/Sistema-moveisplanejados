@@ -732,6 +732,96 @@ Adicionar validações e tratamento de erros.
 
 Testar rotas com Postman ou Insomnia.
 
+13/03/2026:
+
+Funcionalidades Implementadas
+
+Login com JWT:
+
+Usuários podem realizar login com email e senha.
+
+O backend gera um token JWT após a autenticação bem-sucedida.
+
+O token é utilizado para acessar rotas protegidas no sistema.
+
+Cadastro de Clientes:
+
+A API permite cadastrar novos clientes.
+
+Os dados do cliente incluem Nome, Email, e Telefone.
+
+Rotas Protegidas:
+
+O acesso às rotas de clientes e outras funcionalidades protegidas é feito apenas com um token JWT válido.
+
+
+O sistema usa o middleware para verificar a validade do token.
+
+Resumo das Etapas Realizadas
+
+Configuração Inicial:
+
+O projeto foi estruturado com Node.js e Express.
+
+O banco de dados foi configurado com SQL Server para armazenar usuários e clientes.
+
+Autenticação JWT:
+
+Implementamos o processo de login com JWT. A senha do usuário é criptografada com bcrypt, e o token JWT é gerado após a autenticação bem-sucedida.
+
+O middleware de autenticação foi configurado para proteger as rotas, exigindo um token válido para acessar as informações.
+
+Criação de Clientes:
+
+Implementamos o cadastro de clientes com validação de Nome, Email, e Telefone.
+
+Testamos o fluxo completo e criamos um cliente com sucesso.
+
+Testes e Debugging:
+
+Realizamos testes para verificar a validação de senha e a criação de clientes.
+
+A funcionalidade foi testada com o Thunder Client/Postman para garantir que as rotas GET, POST e outras funcionam corretamente.
+
+
+Próximos Passos
+
+Adicionar Mais Funcionalidades:
+
+Cadastro de Projetos, Ambientes, e Móveis.
+
+Orçamento automático baseado em dados de clientes e móveis.
+
+Melhorias e Testes:
+
+Melhorar a validação de dados no backend (por exemplo, validando se o email já está cadastrado antes de inserir um novo cliente).
+
+Realizar testes de carga e performance para garantir que o sistema possa escalar conforme necessário.
+
+Documentação e Deploy:
+
+Documentar as rotas da API com exemplos de como usá-las.
+
+Configuração de deploy para produção (por exemplo, usando Heroku ou AWS).
+
+Estruturar o código com mais foco em boas práticas de desenvolvimento e manutenção a longo prazo.
+
+Próximos Testes a Realizar:
+
+Testar a proteção das rotas com JWT.
+
+Testar a criação de Projetos, Ambientes, Móveis e orçamentos.
+
+Decisões para Amanhã:
+
+Continuar com a implementação de novas funcionalidades.
+
+Focar na validação de dados e na expansão do sistema (incluir mais dados no cadastro de clientes, projetos, móveis, etc.).
+
+Criar rotas para relatórios e gestão de pedidos.
+
+
+
 
 👨‍💻 Autor
 

@@ -4,9 +4,9 @@ const { poolPromise, sql } = require('../config/db');
 // CREATE
 // ==========================
 exports.create = async (req, res) => {
-  const { nome, cpf, email, telefone, endereco } = req.body;
+  const { Nome, Email, Telefone } = req.body;
 
-  if (!nome) {
+  if (!Nome) {
     return res.status(400).json({ error: 'Nome é obrigatório' });
   }
 
@@ -14,20 +14,18 @@ exports.create = async (req, res) => {
     const pool = await poolPromise;
 
     const result = await pool.request()
-      .input('nome', sql.VarChar, nome)
-      .input('cpf', sql.VarChar, cpf || null)
-      .input('email', sql.VarChar, email || null)
-      .input('telefone', sql.VarChar, telefone || null)
-      .input('endereco', sql.VarChar, endereco || null)
+      .input('Nome', sql.VarChar, Nome)
+      .input('Email', sql.VarChar, Email || null)
+      .input('Telefone', sql.VarChar, Telefone || null)
       .query(`
-        INSERT INTO clientes (nome, cpf, email, telefone, endereco)
-        OUTPUT INSERTED.id_cliente
-        VALUES (@nome, @cpf, @email, @telefone, @endereco)
+        INSERT INTO dbo.Clientes (Nome, Email, Telefone)
+        OUTPUT INSERTED.Id
+        VALUES (@Nome, @Email, @Telefone)
       `);
 
     res.status(201).json({
       message: 'Cliente criado com sucesso',
-      id: result.recordset[0].id_cliente
+      id: result.recordset[0].Id
     });
 
   } catch (err) {
@@ -43,10 +41,15 @@ exports.findAll = async (req, res) => {
   try {
     const pool = await poolPromise;
 
+    // Corrigir a query para usar o nome correto da coluna, como 'CreatedAt' e 'UpdatedAt'
     const result = await pool.request()
-      .query('SELECT * FROM clientes ORDER BY id_cliente DESC');
+      .query(`
+        SELECT Id, Nome, Email, Telefone, CreatedAt, UpdatedAt  -- Ajuste esses nomes conforme o que está no banco
+        FROM dbo.Clientes
+        ORDER BY Id DESC
+      `);
 
-    res.json(result.recordset);
+    res.json(result.recordset); // Retorna os resultados para o cliente
 
   } catch (err) {
     console.error('Erro ao listar clientes:', err);
@@ -65,7 +68,11 @@ exports.findById = async (req, res) => {
 
     const result = await pool.request()
       .input('id', sql.Int, id)
-      .query('SELECT * FROM clientes WHERE id_cliente = @id');
+      .query(`
+        SELECT Id, Nome, Email, Telefone, CreatedAt, UpdatedAt  -- Ajuste esses nomes conforme o que está no banco
+        FROM dbo.Clientes
+        WHERE Id = @id
+      `);
 
     if (!result.recordset.length) {
       return res.status(404).json({ error: 'Cliente não encontrado' });
@@ -84,9 +91,9 @@ exports.findById = async (req, res) => {
 // ==========================
 exports.update = async (req, res) => {
   const { id } = req.params;
-  const { nome, cpf, email, telefone, endereco } = req.body;
+  const { Nome, Email, Telefone } = req.body;
 
-  if (!nome) {
+  if (!Nome) {
     return res.status(400).json({ error: 'Nome é obrigatório' });
   }
 
@@ -95,19 +102,16 @@ exports.update = async (req, res) => {
 
     const result = await pool.request()
       .input('id', sql.Int, id)
-      .input('nome', sql.VarChar, nome)
-      .input('cpf', sql.VarChar, cpf || null)
-      .input('email', sql.VarChar, email || null)
-      .input('telefone', sql.VarChar, telefone || null)
-      .input('endereco', sql.VarChar, endereco || null)
+      .input('Nome', sql.VarChar, Nome)
+      .input('Email', sql.VarChar, Email || null)
+      .input('Telefone', sql.VarChar, Telefone || null)
       .query(`
-        UPDATE clientes
-        SET nome = @nome,
-            cpf = @cpf,
-            email = @email,
-            telefone = @telefone,
-            endereco = @endereco
-        WHERE id_cliente = @id
+        UPDATE dbo.Clientes
+        SET Nome = @Nome,
+            Email = @Email,
+            Telefone = @Telefone,
+            UpdatedAt = GETDATE()  -- Ajuste o nome conforme o banco
+        WHERE Id = @id
       `);
 
     if (result.rowsAffected[0] === 0) {
@@ -133,7 +137,10 @@ exports.remove = async (req, res) => {
 
     const result = await pool.request()
       .input('id', sql.Int, id)
-      .query('DELETE FROM clientes WHERE id_cliente = @id');
+      .query(`
+        DELETE FROM dbo.Clientes
+        WHERE Id = @id
+      `);
 
     if (result.rowsAffected[0] === 0) {
       return res.status(404).json({ error: 'Cliente não encontrado' });
