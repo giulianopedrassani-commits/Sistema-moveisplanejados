@@ -12,6 +12,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "axios": "^1.13.6",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
@@ -20,6 +21,7 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
     "mssql": "^12.2.0",
+    "multer": "^2.1.1",
     "routes": "^2.1.0",
     "winston": "^3.19.0"
   },

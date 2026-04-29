@@ -1,14 +1,14 @@
 const jwt = require('jsonwebtoken');
-const logger = require('../logger/logger'); // Se você estiver usando algum logger, senão pode desconsiderar
+const logger = require('../logger/logger'); // Se você estiver usando algum logger, caso contrário, use console.error
 require('dotenv').config();
 
-const SECRET = process.env.JWT_SECRET;
+const SECRET = process.env.JWT_SECRET || 'segredo123'; // O segredo JWT
 
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers['authorization'];
 
   if (!authHeader) {
-    logger.error('Token não fornecido');
+    console.error('Token não fornecido');
     return res.status(401).json({ success: false, message: 'Token não fornecido' });
   }
 
@@ -17,8 +17,12 @@ const authMiddleware = (req, res, next) => {
   // Verifica o token
   jwt.verify(token, SECRET, (err, decoded) => {
     if (err) {
-      logger.error('Token inválido');
-      return res.status(401).json({ success: false, message: 'Token inválido' });
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ success: false, message: 'Token expirado' });
+      }
+
+      console.error('Token inválido');
+      return res.status(401).json({ success: false, message: 'Token inválido', error: err.message });
     }
 
     // Salva o usuário no request para as rotas seguintes

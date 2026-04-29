@@ -3,8 +3,9 @@ const MoveisMateriais = require('../models/moveisMateriaisModel');
 const moveisMateriaisController = {
     addMaterial: async (req, res) => {
         const { moveisId, materiaisId, quantidade } = req.body;
+        const empresaId = req.user.empresaId;
         try {
-            await MoveisMateriais.addMaterial(moveisId, materiaisId, quantidade);
+            await MoveisMateriais.addMaterial(moveisId, materiaisId, empresaId, quantidade);
             res.status(201).json({ message: 'Material adicionado ao móvel com sucesso!' });
         } catch (err) {
             res.status(500).json({ error: err.message });
@@ -36,6 +37,16 @@ const moveisMateriaisController = {
         try {
             await MoveisMateriais.removeMaterial(moveisId, materiaisId);
             res.json({ message: 'Material removido do móvel!' });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    },
+    
+    getMateriaisProjeto: async (req, res) => {
+        const idProjeto = parseInt(req.params.id);
+        try {
+            const materiais = await MoveisMateriais.getMateriaisByProjeto(idProjeto);
+            res.json(materiais);
         } catch (err) {
             res.status(500).json({ error: err.message });
         }

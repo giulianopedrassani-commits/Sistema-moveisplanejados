@@ -5,22 +5,24 @@ const { poolPromise, sql } = require('../config/db');
 // ==========================
 exports.create = async (req, res) => {
   const { Nome, Email, Telefone } = req.body;
+  const empresaId = req.user.empresaId; // Vem do token JWT
+  const perfil = req.user.perfil;
 
-  if (!Nome) {
-    return res.status(400).json({ error: 'Nome é obrigatório' });
-  }
+  if (!empresaId && perfil !== 'superadmin') return res.status(403).json({ error: 'Acesso negado: Empresa não identificada' });
+  if (!Nome) return res.status(400).json({ error: 'Nome é obrigatório' });
 
   try {
     const pool = await poolPromise;
 
     const result = await pool.request()
+      .input('EmpresaId', sql.Int, empresaId)
       .input('Nome', sql.VarChar, Nome)
       .input('Email', sql.VarChar, Email || null)
       .input('Telefone', sql.VarChar, Telefone || null)
       .query(`
-        INSERT INTO dbo.Clientes (Nome, Email, Telefone)
+        INSERT INTO dbo.Clientes (EmpresaId, Nome, Email, Telefone)
         OUTPUT INSERTED.Id
-        VALUES (@Nome, @Email, @Telefone)
+        VALUES (@EmpresaId, @Nome, @Email, @Telefone)
       `);
 
     res.status(201).json({
@@ -38,14 +40,19 @@ exports.create = async (req, res) => {
 // READ ALL
 // ==========================
 exports.findAll = async (req, res) => {
+  const empresaId = req.user.empresaId;
+  const perfil = req.user.perfil;
+
   try {
     const pool = await poolPromise;
 
-    // Corrigir a query para usar o nome correto da coluna, como 'CreatedAt' e 'UpdatedAt'
     const result = await pool.request()
+      .input('EmpresaId', sql.Int, empresaId)
+      .input('Perfil', sql.VarChar, perfil)
       .query(`
-        SELECT Id, Nome, Email, Telefone, CreatedAt, UpdatedAt  -- Ajuste esses nomes conforme o que está no banco
+        SELECT Id, Nome, Email, Telefone, CreatedAt, UpdatedAt
         FROM dbo.Clientes
+        WHERE (@Perfil = 'superadmin' OR EmpresaId = @EmpresaId)
         ORDER BY Id DESC
       `);
 
@@ -62,16 +69,18 @@ exports.findAll = async (req, res) => {
 // ==========================
 exports.findById = async (req, res) => {
   const { id } = req.params;
+  const empresaId = req.user.empresaId;
 
   try {
     const pool = await poolPromise;
 
     const result = await pool.request()
       .input('id', sql.Int, id)
+      .input('EmpresaId', sql.Int, empresaId)
       .query(`
-        SELECT Id, Nome, Email, Telefone, CreatedAt, UpdatedAt  -- Ajuste esses nomes conforme o que está no banco
+        SELECT Id, Nome, Email, Telefone, CreatedAt, UpdatedAt
         FROM dbo.Clientes
-        WHERE Id = @id
+        WHERE Id = @id AND EmpresaId = @EmpresaId
       `);
 
     if (!result.recordset.length) {
@@ -92,16 +101,16 @@ exports.findById = async (req, res) => {
 exports.update = async (req, res) => {
   const { id } = req.params;
   const { Nome, Email, Telefone } = req.body;
+  const empresaId = req.user.empresaId;
 
-  if (!Nome) {
-    return res.status(400).json({ error: 'Nome é obrigatório' });
-  }
+  if (!Nome) return res.status(400).json({ error: 'Nome é obrigatório' });
 
   try {
     const pool = await poolPromise;
 
     const result = await pool.request()
       .input('id', sql.Int, id)
+      .input('EmpresaId', sql.Int, empresaId)
       .input('Nome', sql.VarChar, Nome)
       .input('Email', sql.VarChar, Email || null)
       .input('Telefone', sql.VarChar, Telefone || null)
@@ -110,8 +119,8 @@ exports.update = async (req, res) => {
         SET Nome = @Nome,
             Email = @Email,
             Telefone = @Telefone,
-            UpdatedAt = GETDATE()  -- Ajuste o nome conforme o banco
-        WHERE Id = @id
+            UpdatedAt = GETDATE()
+        WHERE Id = @id AND EmpresaId = @EmpresaId
       `);
 
     if (result.rowsAffected[0] === 0) {
@@ -131,15 +140,17 @@ exports.update = async (req, res) => {
 // ==========================
 exports.remove = async (req, res) => {
   const { id } = req.params;
+  const empresaId = req.user.empresaId;
 
   try {
     const pool = await poolPromise;
 
     const result = await pool.request()
       .input('id', sql.Int, id)
+      .input('EmpresaId', sql.Int, empresaId)
       .query(`
         DELETE FROM dbo.Clientes
-        WHERE Id = @id
+        WHERE Id = @id AND EmpresaId = @EmpresaId
       `);
 
     if (result.rowsAffected[0] === 0) {

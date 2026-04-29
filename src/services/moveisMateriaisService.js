@@ -2,17 +2,22 @@ const { poolPromise, sql } = require('../config/db');
 
 const MoveisMateriaisService = {
 
-    // Adicionar material a um móvel
-    addMaterial: async (moveisId, materiaisId, quantidade = 1) => {
+    // Adicionar material a um móvel (verificando empresa)
+    addMaterial: async (moveisId, materiaisId, empresaId, quantidade = 1) => {
         try {
            const pool = await poolPromise;
             await pool.request()
                 .input('moveisId', sql.Int, moveisId)
                 .input('materiaisId', sql.Int, materiaisId)
                 .input('quantidade', sql.Decimal(10,2), quantidade)
+                .input('empresaId', sql.Int, empresaId)
                 .query(`
+                    -- Inserir material apenas se o móvel pertencer à empresa
                     INSERT INTO MoveisMateriais (MoveisId, MateriaisId, Quantidade)
-                    VALUES (@moveisId, @materiaisId, @quantidade)
+                    SELECT @moveisId, @materiaisId, @quantidade
+                    FROM Moveis m
+                    JOIN ambiente a ON a.id_ambiente = m.AmbienteId
+                    WHERE m.Id = @moveisId AND a.EmpresaId = @empresaId
                 `);
         } catch (error) {
             throw new Error(`Erro ao adicionar material: ${error.message}`);

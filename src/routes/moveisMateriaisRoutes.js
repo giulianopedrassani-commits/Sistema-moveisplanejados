@@ -6,5 +6,6 @@ router.post('/add', controller.addMaterial);
 router.get('/:id', controller.getMateriais);
 router.put('/update', controller.updateQuantidade);
 router.delete('/remove', controller.removeMaterial);
+router.get('/projeto/:id', controller.getMateriaisProjeto);
 
 module.exports = router;

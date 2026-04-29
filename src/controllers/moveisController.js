@@ -5,7 +5,21 @@ class MoveisController {
 
     static async listar(req, res) {
         try {
-            const moveis = await MoveisService.listarMoveis();
+            const empresaId = req.user.empresaId;
+            const perfil = req.user.perfil;
+            const moveis = await MoveisService.listarMoveis(empresaId, perfil);
+            res.status(200).json(moveis);
+        } catch (error) {
+            res.status(500).json({ erro: error.message });
+        }
+    }
+
+    static async listarPorProjeto(req, res) {
+        try {
+            const { id } = req.params;
+            const empresaId = req.user.empresaId;
+            const perfil = req.user.perfil;
+            const moveis = await MoveisService.listarMoveisPorProjeto(id, empresaId, perfil);
             res.status(200).json(moveis);
         } catch (error) {
             res.status(500).json({ erro: error.message });
@@ -15,8 +29,8 @@ class MoveisController {
     static async buscarPorId(req, res) {
         try {
             const { id } = req.params;
-
-            const movel = await MoveisService.buscarMovelPorId(id);
+            const empresaId = req.user.empresaId;
+            const movel = await MoveisService.buscarMovelPorId(id, empresaId);
             if (!movel) {
                 return res.status(404).json({ erro: 'Móvel não encontrado' });
             }
@@ -34,14 +48,15 @@ class MoveisController {
     static async criar(req, res) {
         try {
             const data = req.body;
+            const empresaId = req.user.empresaId;
 
-            // Criar móvel
-            const movelId = await MoveisService.criarMovel(data);
+            // Criar móvel validando empresa
+            const movelId = await MoveisService.criarMovel(data, empresaId);
 
             // Se houver materiais, adicionar
             if (data.materiais && Array.isArray(data.materiais)) {
                 for (const mat of data.materiais) {
-                    await MoveisMateriaisService.addMaterial(movelId, mat.id, mat.quantidade);
+                    await MoveisMateriaisService.addMaterial(movelId, mat.id, empresaId, mat.quantidade);
                 }
             }
 
@@ -54,8 +69,8 @@ class MoveisController {
     static async deletar(req, res) {
         try {
             const { id } = req.params;
-
-            await MoveisService.deletarMovel(id);
+            const empresaId = req.user.empresaId;
+            await MoveisService.deletarMovel(id, empresaId);
 
             res.status(200).json({ mensagem: 'Móvel deletado com sucesso' });
         } catch (error) {
@@ -68,8 +83,8 @@ class MoveisController {
         try {
             const { id } = req.params;
             const data = req.body;
-
-            await MoveisService.atualizarMovel(id, data);
+            const empresaId = req.user.empresaId;
+            await MoveisService.atualizarMovel(id, { ...data, EmpresaId: empresaId });
 
             res.status(200).json({ mensagem: 'Móvel atualizado com sucesso' });
         } catch (error) {

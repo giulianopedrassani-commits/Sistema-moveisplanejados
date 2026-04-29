@@ -1,150 +1,109 @@
-const { poolPromise, sql } = require('../config/db');
+const ProjetoService = require('../services/projetoService');
 
-// ==========================
 // CREATE
-// ==========================
 exports.create = async (req, res) => {
-  const { id_cliente, nome, descricao } = req.body;
+  const { ClienteId, Nome, Descricao, Endereco, Status } = req.body;
+  const EmpresaId = req.user.empresaId;
 
-  if (!id_cliente || !nome) {
-    return res.status(400).json({ error: 'Cliente e nome são obrigatórios' });
+  if (!ClienteId || !Nome) {
+    return res.status(400).json({ error: 'ClienteId e Nome são obrigatórios' });
   }
 
   try {
-    const pool = await poolPromise;
-
-    const result = await pool.request()
-      .input('id_cliente', sql.Int, id_cliente)
-      .input('nome', sql.VarChar, nome)
-      .input('descricao', sql.VarChar, descricao || null)
-      .query(`
-        INSERT INTO projetos (id_cliente, nome, descricao)
-        OUTPUT INSERTED.id_projeto
-        VALUES (@id_cliente, @nome, @descricao)
-      `);
-
+    const novoProjeto = await ProjetoService.criarProjeto({ EmpresaId, ClienteId, Nome, Descricao, Endereco, Status });
     res.status(201).json({
       message: 'Projeto criado com sucesso',
-      id: result.recordset[0].id_projeto
+      id: novoProjeto.Id
     });
-
   } catch (err) {
     console.error('Erro ao criar projeto:', err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// ==========================
 // READ ALL
-// ==========================
 exports.findAll = async (req, res) => {
+  const empresaId = req.user.empresaId;
+  const perfil = req.user.perfil;
   try {
-    const pool = await poolPromise;
-
-    const result = await pool.request()
-      .query(`
-        SELECT p.*, c.nome as cliente_nome
-        FROM projetos p
-        JOIN clientes c ON c.id_cliente = p.id_cliente
-        ORDER BY p.id_projeto DESC
-      `);
-
-    res.json(result.recordset);
-
+    const projetos = await ProjetoService.listarProjetos(empresaId, perfil);
+    res.json(projetos);
   } catch (err) {
     console.error('Erro ao listar projetos:', err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// ==========================
 // READ BY ID
-// ==========================
 exports.findById = async (req, res) => {
   const { id } = req.params;
+  const empresaId = req.user.empresaId;
 
   try {
-    const pool = await poolPromise;
+    const projeto = await ProjetoService.buscarPorId(id, empresaId);
 
-    const result = await pool.request()
-      .input('id', sql.Int, id)
-      .query(`
-        SELECT p.*, c.nome as cliente_nome
-        FROM projetos p
-        JOIN clientes c ON c.id_cliente = p.id_cliente
-        WHERE p.id_projeto = @id
-      `);
-
-    if (!result.recordset.length) {
+    if (!projeto) {
       return res.status(404).json({ error: 'Projeto não encontrado' });
     }
 
-    res.json(result.recordset[0]);
-
+    res.json(projeto);
   } catch (err) {
     console.error('Erro ao buscar projeto:', err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// ==========================
 // UPDATE
-// ==========================
 exports.update = async (req, res) => {
   const { id } = req.params;
-  const { id_cliente, nome, descricao } = req.body;
+  const { ClienteId, Nome, Descricao, Endereco, Status } = req.body;
+  const EmpresaId = req.user.empresaId;
 
-  if (!id_cliente || !nome) {
-    return res.status(400).json({ error: 'Cliente e nome são obrigatórios' });
+  if (!ClienteId || !Nome) {
+    return res.status(400).json({ error: 'ClienteId e Nome são obrigatórios' });
   }
 
   try {
-    const pool = await poolPromise;
-
-    const result = await pool.request()
-      .input('id', sql.Int, id)
-      .input('id_cliente', sql.Int, id_cliente)
-      .input('nome', sql.VarChar, nome)
-      .input('descricao', sql.VarChar, descricao || null)
-      .query(`
-        UPDATE projetos
-        SET id_cliente = @id_cliente,
-            nome = @nome,
-            descricao = @descricao
-        WHERE id_projeto = @id
-      `);
-
-    if (result.rowsAffected[0] === 0) {
-      return res.status(404).json({ error: 'Projeto não encontrado' });
-    }
-
+    const resultado = await ProjetoService.atualizarProjeto(id, { EmpresaId, ClienteId, Nome, Descricao, Endereco, Status });
     res.json({ message: 'Projeto atualizado com sucesso' });
-
   } catch (err) {
     console.error('Erro ao atualizar projeto:', err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// ==========================
-// DELETE
-// ==========================
-exports.remove = async (req, res) => {
+// UPDATE STATUS ONLY
+exports.updateStatus = async (req, res) => {
   const { id } = req.params;
+  const { Status } = req.body;
+  const empresaId = req.user.empresaId;
+
+  if (!Status) {
+    return res.status(400).json({ error: 'Status é obrigatório' });
+  }
 
   try {
-    const pool = await poolPromise;
+    const resultado = await ProjetoService.atualizarStatus(id, Status, empresaId);
+    res.json(resultado);
+  } catch (err) {
+    console.error('Erro ao atualizar status:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
 
-    const result = await pool.request()
-      .input('id', sql.Int, id)
-      .query('DELETE FROM projetos WHERE id_projeto = @id');
+// DELETE
+exports.remove = async (req, res) => {
+  const { id } = req.params;
+  const empresaId = req.user.empresaId;
 
-    if (result.rowsAffected[0] === 0) {
+  try {
+    const sucesso = await ProjetoService.deletarProjeto(id, empresaId);
+
+    if (!sucesso) {
       return res.status(404).json({ error: 'Projeto não encontrado' });
     }
 
     res.json({ message: 'Projeto removido com sucesso' });
-
   } catch (err) {
     console.error('Erro ao remover projeto:', err);
     res.status(500).json({ error: err.message });

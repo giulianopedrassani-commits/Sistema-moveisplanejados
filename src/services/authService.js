@@ -11,10 +11,15 @@ async function login({ email, senha }) {
         // Conexão com o banco de dados
         const pool = await poolPromise;
 
-        // Consulta para encontrar o usuário com o email fornecido
+        // Consulta para encontrar o usuário e o nome da empresa associada
         const result = await pool.request()
             .input('Email', sql.VarChar, email)
-            .query('SELECT * FROM dbo.Usuarios WHERE Email = @Email');
+            .query(`
+                SELECT u.*, e.NomeFantasia 
+                FROM dbo.Usuarios u
+                LEFT JOIN dbo.Empresas e ON u.EmpresaId = e.Id
+                WHERE u.Email = @Email
+            `);
 
         // Verifica se o usuário foi encontrado
         if (result.recordset.length === 0) {
@@ -30,9 +35,16 @@ async function login({ email, senha }) {
             throw new Error('Senha incorreta');
         }
 
-        // Gerar o token JWT
-        const token = jwt.sign({ id: user.Id, email: user.Email, perfil: user.Perfil }, SECRET, {
-            expiresIn: '1h',
+        // Gerar o token JWT incluindo o EmpresaId
+        const token = jwt.sign({ 
+            id: user.Id, 
+            email: user.Email, 
+            perfil: user.Perfil,
+            empresaId: user.EmpresaId,
+            // Pegamos o NomeFantasia garantindo que ele chegue ao frontend, fallback apenas se for SuperAdmin
+            empresaNome: user.NomeFantasia || user.nomefantasia || (user.Perfil === 'superadmin' ? 'Gestão Sistema Global' : 'Minha Loja')
+        }, SECRET, {
+            expiresIn: '12h', // Aumentado para 12h pra conforto no uso diário
         });
 
         return { token };  // Retorna o token JWT
