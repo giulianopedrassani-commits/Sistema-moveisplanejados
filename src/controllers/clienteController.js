@@ -14,8 +14,11 @@ exports.create = async (req, res) => {
   try {
     const pool = await poolPromise;
 
+    let targetEmpresaId = empresaId;
+    if (!targetEmpresaId && perfil === 'superadmin') targetEmpresaId = 2; // Default para Jose luiz
+
     const result = await pool.request()
-      .input('EmpresaId', sql.Int, empresaId)
+      .input('EmpresaId', sql.Int, targetEmpresaId)
       .input('Nome', sql.VarChar, Nome)
       .input('Email', sql.VarChar, Email || null)
       .input('Telefone', sql.VarChar, Telefone || null)
@@ -74,13 +77,15 @@ exports.findById = async (req, res) => {
   try {
     const pool = await poolPromise;
 
+    const perfil = req.user.perfil;
     const result = await pool.request()
       .input('id', sql.Int, id)
       .input('EmpresaId', sql.Int, empresaId)
+      .input('Perfil', sql.VarChar, perfil)
       .query(`
         SELECT Id, Nome, Email, Telefone, CreatedAt, UpdatedAt
         FROM dbo.Clientes
-        WHERE Id = @id AND EmpresaId = @EmpresaId
+        WHERE Id = @id AND (@Perfil = 'superadmin' OR EmpresaId = @EmpresaId)
       `);
 
     if (!result.recordset.length) {
@@ -108,19 +113,21 @@ exports.update = async (req, res) => {
   try {
     const pool = await poolPromise;
 
+    const perfil = req.user.perfil;
     const result = await pool.request()
       .input('id', sql.Int, id)
       .input('EmpresaId', sql.Int, empresaId)
       .input('Nome', sql.VarChar, Nome)
       .input('Email', sql.VarChar, Email || null)
       .input('Telefone', sql.VarChar, Telefone || null)
+      .input('Perfil', sql.VarChar, perfil)
       .query(`
         UPDATE dbo.Clientes
         SET Nome = @Nome,
             Email = @Email,
             Telefone = @Telefone,
             UpdatedAt = GETDATE()
-        WHERE Id = @id AND EmpresaId = @EmpresaId
+        WHERE Id = @id AND (@Perfil = 'superadmin' OR EmpresaId = @EmpresaId)
       `);
 
     if (result.rowsAffected[0] === 0) {
@@ -145,12 +152,14 @@ exports.remove = async (req, res) => {
   try {
     const pool = await poolPromise;
 
+    const perfil = req.user.perfil;
     const result = await pool.request()
       .input('id', sql.Int, id)
       .input('EmpresaId', sql.Int, empresaId)
+      .input('Perfil', sql.VarChar, perfil)
       .query(`
         DELETE FROM dbo.Clientes
-        WHERE Id = @id AND EmpresaId = @EmpresaId
+        WHERE Id = @id AND (@Perfil = 'superadmin' OR EmpresaId = @EmpresaId)
       `);
 
     if (result.rowsAffected[0] === 0) {

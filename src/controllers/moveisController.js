@@ -84,7 +84,7 @@ class MoveisController {
             const { id } = req.params;
             const data = req.body;
             const empresaId = req.user.empresaId;
-            await MoveisService.atualizarMovel(id, { ...data, EmpresaId: empresaId });
+            await MoveisService.atualizarMovel(id, empresaId, data);
 
             res.status(200).json({ mensagem: 'Móvel atualizado com sucesso' });
         } catch (error) {

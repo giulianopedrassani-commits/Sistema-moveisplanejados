@@ -97,7 +97,8 @@ exports.remove = async (req, res) => {
   const empresaId = req.user.empresaId;
 
   try {
-    const sucesso = await ProjetoService.deletarProjeto(id, empresaId);
+    const perfil = req.user.perfil;
+    const sucesso = await ProjetoService.deletarProjeto(id, empresaId, perfil);
 
     if (!sucesso) {
       return res.status(404).json({ error: 'Projeto não encontrado' });

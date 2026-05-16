@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Lojas - SuperAdmin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/style.css">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    
+    <style>
+        .app-layout { display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { 
+            width: 260px; 
+            background: rgba(15, 23, 42, 0.95); 
+            border-right: 1px solid var(--glass-border); 
+            padding: 2rem 1.5rem; 
+        }
+        .main-content { flex-grow: 1; padding: 2rem 3rem; overflow-y: auto; }
+        .company-table {
+            width: 100%; border-collapse: separate; border-spacing: 0 0.75rem;
+        }
+        .company-table th { text-align: left; padding: 1rem; color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; }
+        .company-table td { padding: 1.25rem 1rem; background: var(--glass-bg); border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border); }
+        .company-table td:first-child { border-left: 1px solid var(--glass-border); border-top-left-radius: var(--radius-md); border-bottom-left-radius: var(--radius-md); }
+        .company-table td:last-child { border-right: 1px solid var(--glass-border); border-top-right-radius: var(--radius-md); border-bottom-right-radius: var(--radius-md); }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 600;
+        }
+        .status-active { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+        .status-inactive { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+        .btn-toggle { background: none; border: 1px solid var(--glass-border); color: var(--text-primary); padding: 0.5rem; border-radius: var(--radius-sm); cursor: pointer; }
+        .btn-toggle:hover { background: rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="brand-logo" id="sidebar-brand" style="margin-bottom: 3rem; font-weight: 700; font-size: 1.2rem; color: var(--accent-neon);">
+                <i class='bx bxs-shield-quarter'></i> Loja de Móveis Planejados
+            </div>
+            <nav style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <a href="dashboard.html" class="nav-item">
+                    <i class='bx bx-arrow-back'></i> Voltar ao Painel
+                </a>
+                <a href="#" class="nav-item active">
+                    <i class='bx bx-buildings'></i> Gestão de Lojas
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem;">
+                <div>
+                    <h1 class="page-title">Gestão de Lojas (Clientes)</h1>
+                    <p style="color: var(--text-secondary);">Gerencie as empresas que utilizam sua plataforma</p>
+                </div>
+                <button class="btn-primary" onclick="abrirModalNovaEmpresa()">+ Cadastrar Nova Loja</button>
+            </header>
+
+            <div class="glass-panel" style="padding: 1.5rem;">
+                <table class="company-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nome da Loja</th>
+                            <th>CNPJ</th>
+                            <th>E-mail Master</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="company-list">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Nova/Editar Empresa -->
+    <div id="modal-empresa" class="modal-overlay">
+        <div class="modal-box" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title-empresa">Cadastrar Nova Loja</h2>
+                <button class="modal-close" onclick="fecharModalEmpresa()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-empresa">
+                    <input type="hidden" id="empresa-id-edit">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Nome da Loja (Empresa) *</label>
+                            <input type="text" id="nome-loja" class="form-input" placeholder="Ex: Móveis Planejados Silva" required title="Este nome aparecerá para o cliente no sistema">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CNPJ (Opcional)</label>
+                            <input type="text" id="cnpj-loja" class="form-input" placeholder="00.000.000/0001-00">
+                        </div>
+                    </div>
+
+                    <h3 style="margin: 1.5rem 0 1rem 0; font-size: 1rem; color: var(--accent-neon);">Personalização Visual & Proposta</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">URL do Logo / Banner</label>
+                            <input type="text" id="logo-loja" class="form-input" placeholder="Ex: /banner.png ou link externo">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cor Primária (Hex)</label>
+                            <input type="color" id="cor-loja" class="form-input" style="height: 46px; padding: 2px; cursor: pointer;" value="#3b82f6">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Termos e Observações Padrão (Proposta)</label>
+                        <textarea id="termos-loja" class="form-input" style="min-height: 100px; resize: vertical;" placeholder="Insira aqui os termos que aparecerão no rodapé da proposta comercial..."></textarea>
+                    </div>
+
+                    <h3 id="admin-section-title" style="margin: 1.5rem 0 1rem 0; font-size: 1rem; color: var(--accent-neon);">Usuário Administrador da Loja</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">E-mail de Acesso</label>
+                            <input type="email" id="email-admin" class="form-input" placeholder="contato@loja.com" required>
+                        </div>
+                        <div class="form-group" id="senha-group">
+                            <label class="form-label">Senha inicial ou nova</label>
+                            <div style="position: relative;">
+                                <input type="password" id="senha-admin" class="form-input" value="mudar123" style="padding-right: 40px;">
+                                <i class='bx bx-show' id="toggle-password" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-secondary); font-size: 1.2rem;"></i>
+                            </div>
+                            <small id="password-hint" style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.25rem;">
+                                Mínimo 8 caracteres, misturando letras e números.
+                            </small>
+                        </div>
+                    </div>
+
+                    <div id="alert-msg" class="alert error" style="margin-top: 1rem; display: none;"></div>
+
+                    <div style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
+                        <button type="button" class="btn-secondary" onclick="fecharModalEmpresa()">Cancelar</button>
+                        <button type="submit" class="btn-primary" id="btn-save-empresa">Salvar Loja</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/api.js"></script>
+    <script src="./js/admin_empresas.js"></script>
+</body>
+</html>

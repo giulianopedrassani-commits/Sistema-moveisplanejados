@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel - DesignStudio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/style.css">
+    <!-- Boxicons para os ícones menu -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    
+    <style>
+        /* Layout Base do Dashboard */
+        .app-layout {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Elegante */
+        .sidebar {
+            width: 260px;
+            background: rgba(15, 23, 42, 0.8);
+            border-right: 1px solid var(--glass-border);
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            padding: 2rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .brand-logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: var(--gradient-neon);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .brand-logo i {
+            color: var(--accent-neon);
+        }
+
+        .nav-menu {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex-grow: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.85rem 1rem;
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .nav-item i {
+            font-size: 1.25rem;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-neon);
+        }
+
+        .nav-logout {
+            margin-top: auto;
+            color: #ef4444;
+        }
+
+        .nav-logout:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+        }
+
+        /* Área de Conteúdo Principal */
+        .main-content {
+            flex-grow: 1;
+            padding: 2rem 3rem;
+            overflow-y: auto;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+        }
+
+        .page-title {
+            font-size: 1.75rem;
+            font-weight: 600;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--glass-bg);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--gradient-neon);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Dashboard Overview Grid base */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-neon);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stat-info span {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .stat-info h3 {
+            font-size: 2rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Containers injetáveis */
+        #dynamic-view {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-layout">
+        <!-- Overlay para fechar sidebar no mobile (Bug 5) -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="document.querySelector('.sidebar').classList.remove('open'); this.classList.remove('active');"></div>
+
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand-logo" id="sidebar-brand">
+                <i class='bx bx-cube-alt'></i>
+                Loja de Móveis Planejados
+            </div>
+            
+            <nav class="nav-menu">
+                <a class="nav-item active" onclick="loadView('dashboard')">
+                    <i class='bx bxs-dashboard'></i> Início
+                </a>
+                <a class="nav-item" onclick="loadView('clientes')">
+                    <i class='bx bxs-user-detail'></i> Clientes
+                </a>
+                <a class="nav-item" onclick="loadView('projetos')">
+                    <i class='bx bx-folder'></i> Projetos
+                </a>
+                <a class="nav-item" onclick="loadView('materiais')">
+                    <i class='bx bx-hive'></i> Cadastros / Preços
+                </a>
+
+                <a class="nav-item" onclick="loadView('analise')" style="border: 1px solid rgba(139,92,246,0.3); background: rgba(139,92,246,0.05); margin-top:0.5rem;">
+                    <i class='bx bx-camera'></i> Analisar Foto (IA)
+                </a>
+                
+                <a id="nav-superadmin" class="nav-item" href="admin_empresas.html" style="display: none; border: 1px dashed var(--accent-neon); margin-top: 1rem;">
+                    <i class='bx bx-shield-quarter'></i> Gestão de Lojas
+                </a>
+                
+                <a class="nav-item nav-logout" onclick="utils.logout()">
+                    <i class='bx bx-log-out'></i> Sair
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            <header class="topbar">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <button id="mobile-menu-btn" style="display: none; background: none; border: none; color: var(--text-primary); font-size: 1.7rem; cursor: pointer;" onclick="document.querySelector('.sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('active')">
+                        <i class='bx bx-menu'></i>
+                    </button>
+                    <h1 class="page-title" id="view-title">Dashboard Inicial</h1>
+                </div>
+
+                <div class="user-profile">
+                    <div class="user-info">
+                        <strong>Admin</strong>
+                    </div>
+                    <div class="user-avatar">AD</div>
+                </div>
+            </header>
+
+            <!-- Onde as páginas são injetadas -->
+            <div id="dynamic-view">
+                <!-- Conteúdo Default do Dashboard Inicial -->
+                <div class="stats-grid">
+                    <div class="glass-panel stat-card">
+                        <div class="stat-icon"><i class='bx bx-user'></i></div>
+                        <div class="stat-info">
+                            <span>Clientes Ativos</span>
+                            <h3 id="dash-clientes">0</h3>
+                        </div>
+                    </div>
+                    <div class="glass-panel stat-card">
+                        <div class="stat-icon" style="color: #a855f7; background: rgba(168, 85, 247, 0.1)"><i class='bx bx-folder'></i></div>
+                        <div class="stat-info">
+                            <span>Projetos Fechados</span>
+                            <h3 id="dash-projetos">0</h3>
+                        </div>
+                    </div>
+                    <div class="glass-panel stat-card">
+                        <div class="stat-icon" style="color: #10b981; background: rgba(16, 185, 129, 0.1)"><i class='bx bx-cube-alt'></i></div>
+                        <div class="stat-info">
+                            <span>Móveis Projetados</span>
+                            <h3 id="dash-moveis">0</h3>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3>Ações Rápidas</h3>
+                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <button class="btn-primary" onclick="loadView('clientes')">+ Novo Cliente</button>
+                    <button class="btn-secondary" onclick="loadView('projetos')">Ver Projetos Recentes</button>
+                </div>
+
+                <!-- Novos Gráficos do Dashboard -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+                    <div class="glass-panel" style="padding: 1.5rem; height: 350px; position: relative;">
+                        <h4 style="margin-bottom: 1rem; color: var(--text-secondary)"><i class='bx bx-trending-up'></i> Faturamento Mensal (EVOLUÇÃO)</h4>
+                        <div style="height: 250px;"><canvas id="chart-faturamento"></canvas></div>
+                    </div>
+                    <div class="glass-panel" style="padding: 1.5rem; height: 350px; position: relative;">
+                        <h4 style="margin-bottom: 1rem; color: var(--text-secondary)"><i class='bx bx-pie-chart-alt-2'></i> Móveis Mais Vendidos</h4>
+                        <div style="height: 250px;"><canvas id="chart-moveis"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Base do Sistema -->
+    <div id="sys-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2 id="modal-title" class="modal-title">Título Padrão</h2>
+                <button class="modal-close" onclick="fecharModal()"><i class='bx bx-x'></i></button>
+            </div>
+            <div id="modal-content" class="modal-body">
+                <!-- O Form é injetado via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Preview de Orçamento (Premium) -->
+    <div id="modal-budget" class="modal-overlay">
+        <div class="modal-box modal-xl">
+            <div class="modal-header">
+                <h2 class="modal-title">Preview da Proposta Comercial</h2>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn-primary" style="background: #10b981;" onclick="exportarOrcamentoPDF()">
+                        <i class='bx bxs-file-pdf'></i> Baixar PDF
+                    </button>
+                    <button class="btn-primary" onclick="window.print()">
+                        <i class='bx bx-printer'></i> Imprimir
+                    </button>
+                    <button class="modal-close" onclick="document.getElementById('modal-budget').classList.remove('active')">
+                        <i class='bx bx-x'></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body" style="background: var(--bg-primary); padding: 2rem; overflow-y: auto; max-height: 80vh;">
+                <div id="budget-preview-content" class="budget-preview-container">
+                    <!-- Conteúdo do orçamento injetado via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Área de Impressão (Invisível na tela, surge no papel) -->
+    <div id="print-area"></div>
+
+    <!-- Scripts Core -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="./js/api.js"></script>
+    <script src="./js/app.js"></script>
+    <script>
+        // Fechar a barra lateral ao clicar fora dela em dispositivos móveis
+        document.addEventListener('click', (e) => {
+            const sidebar = document.querySelector('.sidebar');
+            const menuBtn = document.getElementById('mobile-menu-btn');
+            
+            if (window.innerWidth <= 768 && sidebar.classList.contains('open') && 
+                !sidebar.contains(e.target) && !menuBtn.contains(e.target)) {
+                sidebar.classList.remove('open');
+            }
+        });
+    </script>
+</body>
+</html>

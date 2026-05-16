@@ -1,0 +1,554 @@
+:root {
+  /* Cores Base - Dark Mode Premium */
+  --bg-primary: #0f172a; /* Slate 900 */
+  --bg-secondary: #1e293b; /* Slate 800 */
+  --text-primary: #f8fafc; /* Slate 50 */
+  --text-secondary: #94a3b8; /* Slate 400 */
+  
+  /* Cores de Destaque / Neon */
+  --accent-primary: #3b82f6; /* Blue 500 */
+  --accent-hover: #2563eb; /* Blue 600 */
+  --accent-neon: #60a5fa; /* Blue 400 */
+  
+  /* Gradientes */
+  --gradient-neon: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  
+  /* Glassmorphism */
+  --glass-bg: rgba(30, 41, 59, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  
+  /* Espaçamentos e Bordas */
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --spacing-base: 1rem;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  /* Imagem de fundo sutil com blur - Simulando um ambiente de design moderno */
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.15), transparent 25%);
+}
+
+/* ========================================= */
+/* UTILITÁRIOS: GLASSMORPHISM & CONTAINERS   */
+/* ========================================= */
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius-lg);
+}
+
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* ========================================= */
+/* BOTÕES PREMIUM                            */
+/* ========================================= */
+
+.btn-primary {
+  background: var(--gradient-neon);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+  filter: brightness(1.1);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ========================================= */
+/* INPUTS & FORMULÁRIOS                      */
+/* ========================================= */
+
+.form-group {
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.form-input {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.form-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.form-input::placeholder {
+  color: rgba(148, 163, 184, 0.5);
+}
+
+/* BUG 4 FIX: Validação visual de campos inválidos */
+.form-input.is-invalid {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+  animation: shake 0.3s ease;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60%  { transform: translateX(-4px); }
+  40%, 80%  { transform: translateX(4px); }
+}
+.field-error {
+  color: #f87171;
+  font-size: 0.78rem;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  animation: fadeIn 0.2s ease;
+}
+
+/* Ajuste específico para Select (evitar que a seta saia do quadro) */
+select.form-input {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 1rem center !important;
+  background-size: 1.1rem !important;
+  padding: 0.75rem 2.5rem 0.75rem 1rem !important;
+  cursor: pointer;
+  height: 46px !important;
+  line-height: normal !important;
+  width: 100% !important;
+}
+
+/* Remove a seta no Internet Explorer/Edge Antigo */
+select.form-input::-ms-expand {
+  display: none !important;
+}
+
+select.form-input option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* ========================================= */
+/* ALERTS & MENSAGENS                        */
+/* ========================================= */
+
+.alert {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: none; /* Escondido por padrão */
+  animation: fadeIn 0.3s ease;
+}
+
+.alert.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  display: block;
+}
+
+.alert.success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  display: block;
+}
+
+/* ========================================= */
+/* ANIMAÇÕES                                 */
+/* ========================================= */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.entry-animation {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* ========================================= */
+/* MODAL (POPUPS)                            */
+/* ========================================= */
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.85); /* Fundo muito escuro */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal-box {
+  background: var(--bg-secondary);
+  width: 100%;
+  max-width: 500px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  transform: translateY(-20px) scale(0.95);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-overlay.active .modal-box {
+  transform: translateY(0) scale(1);
+}
+
+.modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.modal-close:hover {
+  color: #ef4444;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  padding: 1.5rem;
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+/* BUG 5 FIX: Responsividade Mobile completa */
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -260px;
+    height: 100vh;
+    z-index: 1000;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+    transition: left 0.3s ease;
+  }
+  .sidebar.open {
+    left: 0;
+  }
+  /* Overlay escuro ao abrir sidebar */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+    backdrop-filter: blur(2px);
+  }
+  .sidebar-overlay.active { display: block; }
+  #mobile-menu-btn {
+    display: block !important;
+  }
+  .main-content {
+    padding: 1.25rem 1rem;
+  }
+  .topbar {
+    margin-bottom: 1.5rem;
+  }
+  .page-title {
+    font-size: 1.3rem;
+  }
+  .user-info {
+    display: none;
+  }
+  /* Tabelas scroll horizontal */
+  .glass-panel[style*="overflow-x"],
+  div[style*="overflow-x"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  table {
+    min-width: 600px;
+  }
+  /* Grids adaptam para 1 coluna */
+  div[style*="grid-template-columns: 1fr 3fr"],
+  div[style*="grid-template-columns: 1fr 1fr"],
+  div[style*="grid-template-columns: 2fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* Cards de stats empilham */
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+  /* Modal ocupa mais tela */
+  .modal-box {
+    max-width: 95vw !important;
+    margin: 1rem;
+  }
+  .modal-xl {
+    max-width: 98vw !important;
+  }
+  /* Botões de ação em linha */
+  div[style*="display:flex; justify-content:space-between"] {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+/* ============================================================
+   BADGES DE STATUS
+   ============================================================ */
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-orçamento { background: rgba(156, 163, 175, 0.2); color: #9ca3af; border: 1px solid rgba(156, 163, 175, 0.3); }
+.status-medição { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+.status-produção { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+.status-montagem { background: rgba(168, 85, 247, 0.2); color: #a78bfa; border: 1px solid rgba(168, 85, 247, 0.3); }
+.status-finalizado { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+/* ============================================================
+   ESTILOS DE IMPRESSÃO - ORÇAMENTO PREMIUM
+   ============================================================ */
+@media print {
+    /* Esconde tudo do sistema */
+    .sidebar, .topbar, .btn-primary, .btn-secondary, .modal-overlay, #mobile-menu-btn, .nav-menu, h3:has(.bx-arrow-back), .modal-close {
+        display: none !important;
+    }
+
+    body {
+        background: white !important;
+        color: #1a1a1a !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .app-layout {
+        display: block !important;
+        height: auto !important;
+    }
+
+    .main-content {
+        padding: 0 !important;
+        overflow: visible !important;
+        margin: 0 !important;
+    }
+
+    #dynamic-view {
+        display: none !important; /* Esconde o conteúdo da tela principal */
+    }
+
+    #print-area {
+        display: block !important;
+        background: white !important;
+    }
+
+    .page-break {
+        /* page-break-after: always; REMOVIDO para compactar */
+        padding: 0.5cm 0; /* Espaçamento reduzido */
+        margin-bottom: 2rem;
+    }
+
+    /* Linha Dourada Compacta */
+    .line-golden {
+        border-bottom: 2px solid #d4af37 !important;
+        margin-bottom: 1rem;
+        padding-bottom: 0.2rem;
+        font-size: 1.2rem;
+    }
+
+    /* Tabelas de Orçamento Compactas */
+    .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.5rem 0;
+    }
+
+    .print-table th {
+        text-align: left;
+        background: #f1f5f9 !important;
+        padding: 8px;
+        border-bottom: 1px solid #cbd5e1;
+        color: #1e293b;
+        font-size: 0.85rem;
+    }
+
+    .print-table td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.85rem;
+        color: #334155;
+    }
+
+    .total-box {
+        background: #0f172a !important;
+        color: white !important;
+        padding: 1.5rem;
+        border-radius: 8px;
+        text-align: center;
+        margin-top: 1.5rem;
+    }
+
+    .total-box h2 {
+        color: #60a5fa !important;
+        font-size: 1.8rem;
+        margin-top: 0.25rem;
+    }
+
+    h1, h2, h3, h4 { color: #0f172a !important; }
+    
+    .signature-line {
+        border-bottom: 1px solid #334155;
+        width: 250px;
+        margin-top: 2rem;
+        display: inline-block;
+    }
+}
+
+/* ============================================================
+   BADGES DE LUCRATIVIDADE
+   ============================================================ */
+.profit-badge {
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    font-size: 1.1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.profit-high { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+.profit-med { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+.profit-low { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+/* ============================================================
+   MODAL DE PREVIEW DE ORÇAMENTO (Tamanho Extra)
+   ============================================================ */
+.modal-xl {
+    max-width: 900px !important;
+}
+
+.budget-preview-container {
+    background: white;
+    color: #1a1a1a;
+    padding: 2.5cm 2cm;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 0 50px rgba(0,0,0,0.3);
+    min-height: 800px;
+    position: relative;
+    overflow-y: auto;
+    max-height: 70vh;
+}
+
+/* Fallback para visualização no console se necessário */
+#print-area { display: none; }

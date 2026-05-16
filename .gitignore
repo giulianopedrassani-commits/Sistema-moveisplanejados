@@ -4,3 +4,5 @@ node_modules
 dist
 logs
 *.log
+scratch/
+init-db-temp.js
