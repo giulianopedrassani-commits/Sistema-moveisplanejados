@@ -55,11 +55,26 @@
         <main class="main-content">
             <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem;">
                 <div>
-                    <h1 class="page-title">Gestão de Lojas (Clientes)</h1>
-                    <p style="color: var(--text-secondary);">Gerencie as empresas que utilizam sua plataforma</p>
+                    <h1 class="page-title">Gestão de Lojas</h1>
+                    <p style="color: var(--text-secondary);">Gerencie as empresas que usam o sistema e envie mensagens para todas elas.</p>
                 </div>
                 <button class="btn-primary" onclick="abrirModalNovaEmpresa()">+ Cadastrar Nova Loja</button>
             </header>
+
+            <div class="glass-panel" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+                <h2 style="margin-bottom: 1rem; color: var(--accent-neon);">Aviso Global para todas as lojas</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.95rem;">Mensagem que será enviada para todas as empresas ao acessar o sistema.</p>
+                <div class="form-group">
+                    <label class="form-label" for="aviso-mensagem">Mensagem</label>
+                    <textarea id="aviso-mensagem" class="form-input" style="min-height:120px; resize: vertical;" placeholder="Ex: Hoje à noite haverá atualização às 22:00 horas."></textarea>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+                    <label class="form-label" for="aviso-ativo" style="margin:0;">Ativo</label>
+                    <input type="checkbox" id="aviso-ativo" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-primary);">
+                </div>
+                <button class="btn-primary" type="button" onclick="salvarAvisoGlobal()">Salvar Aviso Global</button>
+                <div id="aviso-alert" class="alert success" style="display:none; margin-top: 1rem;"></div>
+            </div>
 
             <div class="glass-panel" style="padding: 1.5rem;">
                 <table class="company-table">
@@ -126,14 +141,18 @@
                             <input type="email" id="email-admin" class="form-input" placeholder="contato@loja.com" required>
                         </div>
                         <div class="form-group" id="senha-group">
-                            <label class="form-label">Senha inicial ou nova</label>
+                            <label class="form-label">Senha inicial do admin da loja</label>
                             <div style="position: relative;">
-                                <input type="password" id="senha-admin" class="form-input" value="mudar123" style="padding-right: 40px;">
+                                <input type="password" id="senha-admin" class="form-input" placeholder="Digite a senha do admin da loja" style="padding-right: 40px;" required>
                                 <i class='bx bx-show' id="toggle-password" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-secondary); font-size: 1.2rem;"></i>
                             </div>
                             <small id="password-hint" style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.25rem;">
                                 Mínimo 8 caracteres, misturando letras e números.
                             </small>
+                        </div>
+                        <div class="form-group" id="confirm-senha-group">
+                            <label class="form-label">Confirmar senha</label>
+                            <input type="password" id="confirm-senha-admin" class="form-input" placeholder="Repita a senha do admin da loja" required>
                         </div>
                     </div>
 

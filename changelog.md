@@ -4,6 +4,46 @@ Todas as mudanças relevantes deste projeto serão documentadas aqui.
 
 ---
 
+## [2026-05-21] - 🔐 CLIENTES COM SENHA E SUPERADMIN AJUSTADO
+
+### ✅ Adicionado
+- Formulário `+ Novo Cliente` agora exige senha e confirmação de senha.
+- O backend grava `SenhaHash` no cadastro de cliente usando `bcrypt`.
+- Atualizado fluxo de criação de clientes para validar senha forte (mínimo 8 caracteres, letras e números).
+- Superadmin agora tem campo claro de senha ao criar novo usuário admin de loja.
+
+### ✅ Corrigido
+- Separação entre formulário de criação de cliente e formulário de criação de loja.
+- Evitado uso de senha padrão no modal de cadastro de loja.
+
+## [2026-05-20] - 🎉 SISTEMA CONCLUÍDO E ESTABILIZADO
+
+### ✅ Corrigido
+- **poolPromise sync call**: Exportar como função ao invés de Promise
+- **GoogleGenerativeAI blocking**: Lazy initialization no analiseFotoService
+- **empresaRoutes error**: Remover rota /backup não implementada
+- **avisoRoutes error**: Corrigir import de verifyToken (não existe)
+- **Server startup**: Adicionar logs detalhados para debugging
+
+### 🎯 Status Atual
+- ✅ Servidor rodando na porta 3000 sem travamentos
+- ✅ API respondendo com JSON
+- ✅ Autenticação JWT 100% funcional
+- ✅ Conexão SQL Server em background
+- ✅ Todas as 11 rotas principais carregadas com sucesso
+- ✅ Endpoints testados e respondendo
+- ✅ Frontend login page acessível
+
+### 📊 Endpoints Validados
+- ✅ POST /auth/login - Retorna token JWT
+- ✅ GET /clientes - Retorna lista (3 items)
+- ✅ GET /projetos - Retorna lista (1 item)
+- ✅ GET /materiais - Retorna lista (13 items)
+- ✅ GET /moveis - Retorna lista (0 items)
+- ✅ GET /ambientes - Retorna lista (0 items)
+
+---
+
 ## [2026-03-17]
 
 ### Decidido

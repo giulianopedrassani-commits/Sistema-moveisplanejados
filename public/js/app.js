@@ -48,6 +48,11 @@ function verificarPerfilSuperAdmin() {
     if (user.perfil === 'superadmin') {
         const navAdmin = document.getElementById('nav-superadmin');
         if (navAdmin) navAdmin.style.display = 'flex';
+
+        const minhaLojaBtn = document.getElementById('btn-minha-loja');
+        if (minhaLojaBtn) {
+            minhaLojaBtn.style.display = 'none';
+        }
     }
 }
 
@@ -131,7 +136,7 @@ function loadView(viewName) {
                 renderizarMoveis(viewPort);
                 break;
             case 'analise':
-                titleObj.textContent = 'Analisar Foto do Projeto';
+                titleObj.textContent = 'Cálculo do Orçamento (IA)';
                 renderizarAnaliseFoto(viewPort);
                 break;
         }
@@ -139,6 +144,62 @@ function loadView(viewName) {
         // Finaliza transição
         viewPort.style.opacity = 1;
     }, 200);
+}
+
+async function baixarBackup() {
+    const token = localStorage.getItem('@DesignStudio:token');
+    if (!token) {
+        utils.showToast('Token não encontrado. Faça login novamente.', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch('/empresas/backup', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || data.message || 'Falha ao gerar backup.');
+        }
+
+        const blob = await res.blob();
+        const link = document.createElement('a');
+        const contentDisposition = res.headers.get('content-disposition') || '';
+        let filename = 'backup_empresa.zip';
+        const match = /filename\*?=(?:UTF-8''|\")(.*?)(?:\"|$)/i.exec(contentDisposition);
+        if (match && match[1]) {
+            filename = decodeURIComponent(match[1]);
+        }
+
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+
+        utils.showToast('Backup baixado com sucesso!', 'success');
+    } catch (err) {
+        utils.showToast('Erro ao baixar backup: ' + err.message, 'error');
+    }
+}
+
+// Helper para exibir aviso global em todas as telas do dashboard
+function mostrarAvisoGlobal(aviso) {
+    const avisoText = document.getElementById('dashboard-global-notice-text');
+    const avisoBanner = document.getElementById('dashboard-global-notice');
+    if (!avisoBanner || !avisoText) return;
+
+    if (aviso && aviso.Ativo) {
+        avisoText.textContent = aviso.Mensagem || 'Há um aviso ativo para todas as lojas.';
+        avisoBanner.style.display = 'block';
+    } else {
+        avisoBanner.style.display = 'none';
+    }
 }
 
 // ======================================
@@ -149,6 +210,11 @@ async function carregarDashboard() {
     
     // Injeta o layout do dashboard se não estiver lá
     container.innerHTML = `
+        <div style="display:flex; justify-content:flex-end; margin-bottom:1rem; gap:0.75rem;">
+            <button id="btn-backup-loja" class="btn-secondary" onclick="baixarBackup()" style="min-width:220px;">
+                <i class='bx bx-download'></i> Baixar Backup da Minha Loja
+            </button>
+        </div>
         <div class="stats-grid">
             <div class="glass-panel stat-card">
                 <div class="stat-icon"><i class='bx bx-user'></i></div>
@@ -203,6 +269,27 @@ async function carregarDashboard() {
     `;
 
     try {
+        const aviso = await window.apiFetch('/avisos');
+        const avisoText = document.getElementById('dashboard-global-notice-text');
+        const avisoBanner = document.getElementById('dashboard-global-notice');
+        const btnBackup = document.getElementById('btn-backup-loja');
+
+        if (avisoBanner && avisoText && aviso && aviso.Ativo) {
+            avisoText.textContent = aviso.Mensagem || 'Há um aviso ativo para todas as lojas.';
+            avisoBanner.style.display = 'block';
+        } else if (avisoBanner) {
+            avisoBanner.style.display = 'none';
+        }
+
+        if (btnBackup) {
+            const user = parseJwt(localStorage.getItem('@DesignStudio:token'));
+            if (user && user.perfil === 'superadmin') {
+                btnBackup.style.display = 'none';
+            } else {
+                btnBackup.style.display = 'inline-flex';
+            }
+        }
+
         const stats = await window.apiFetch('/dashboard/stats');
         
         if (stats && stats.counts) {
@@ -395,6 +482,15 @@ function abrirModalCliente() {
                 <label class="form-label">Telefone</label>
                 <input type="text" id="cli-telefone" class="form-input" placeholder="(11) 99999-9999">
             </div>
+            <div class="form-group">
+                <label class="form-label">Senha de acesso *</label>
+                <input type="password" id="cli-senha" class="form-input" placeholder="Digite a senha do cliente" required>
+                <small style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.25rem; display:block;">Mínimo 8 caracteres, com letras e números.</small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Confirmar senha *</label>
+                <input type="password" id="cli-confirm-senha" class="form-input" placeholder="Repita a senha do cliente" required>
+            </div>
 
             <div class="modal-footer" style="padding: 1.5rem 0 0 0; margin-top: 1rem;">
                 <button type="button" class="btn-secondary" onclick="fecharModal()">Cancelar</button>
@@ -441,10 +537,36 @@ async function salvarCliente(event) {
     const btnSave = document.getElementById('btn-save-cli');
 
     
+    const senha = document.getElementById('cli-senha').value.trim();
+    const confirmSenha = document.getElementById('cli-confirm-senha').value.trim();
+
+    if (!senha) {
+        alertBox.className = 'alert error';
+        alertBox.textContent = 'A senha do cliente é obrigatória.';
+        alertBox.style.display = 'block';
+        return;
+    }
+
+    const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+    if (!senhaRegex.test(senha)) {
+        alertBox.className = 'alert error';
+        alertBox.textContent = 'A senha deve ter no mínimo 8 caracteres e conter letras e números.';
+        alertBox.style.display = 'block';
+        return;
+    }
+
+    if (senha !== confirmSenha) {
+        alertBox.className = 'alert error';
+        alertBox.textContent = 'As senhas não coincidem.';
+        alertBox.style.display = 'block';
+        return;
+    }
+
     const payload = {
         Nome: document.getElementById('cli-nome').value,
         Email: document.getElementById('cli-email').value,
-        Telefone: document.getElementById('cli-telefone').value
+        Telefone: document.getElementById('cli-telefone').value,
+        Senha: senha
     };
 
     // Bloqueia form
@@ -699,9 +821,14 @@ async function abrirPainelProjeto(idProjeto) {
                                     Qtd: ${m.Quantidade} x ${utils.formatMoney(m.Preco || 0)} = <span style="color:var(--text-primary)">${utils.formatMoney(precoTotalMovel)}</span>
                                 </div>
                             </div>
-                            <button class="btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.6rem; border-color:var(--accent-primary); color:var(--accent-neon)" onclick="abrirModalMateriaisMovel(${m.Id || m.MoveisId}, '${m.Nome}')">
-                                <i class='bx bx-plus'></i> Materiais
-                            </button>
+                            <div style="display:flex; align-items:center; gap:5px">
+                                <button class="btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.6rem; border-color:var(--accent-primary); color:var(--accent-neon)" onclick="abrirModalMateriaisMovel(${m.Id || m.MoveisId}, '${m.Nome}')">
+                                    <i class='bx bx-plus'></i> Materiais
+                                </button>
+                                <button class="btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.6rem; border-color:#ef4444; color:#ef4444" onclick="excluirMovelDoProjeto(${m.Id || m.MoveisId}, ${idProjeto})" title="Excluir Móvel">
+                                    <i class='bx bx-trash'></i>
+                                </button>
+                            </div>
                         </div>
                     `;
                 });
@@ -709,7 +836,12 @@ async function abrirPainelProjeto(idProjeto) {
                 ambientesHTML += `
                     <div class="glass-panel entry-animation" style="padding: 1.5rem; margin-bottom: 1rem; border-color: rgba(59, 130, 246, 0.3)">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem">
-                            <h3 style="color:var(--text-primary); font-size:1.2rem"><i class='bx bx-layout'></i> ${amb.nome_ambiente || 'Ambiente'}</h3>
+                            <h3 style="color:var(--text-primary); font-size:1.2rem; display:flex; align-items:center; gap:8px">
+                                <i class='bx bx-layout'></i> ${amb.nome_ambiente || 'Ambiente'}
+                                <button class="btn-secondary" style="font-size:0.75rem; padding:0.2rem 0.4rem; border-color:#ef4444; color:#f87171" onclick="excluirAmbienteDoProjeto(${amb.Id}, ${idProjeto})" title="Excluir Ambiente">
+                                    <i class='bx bx-trash'></i>
+                                </button>
+                            </h3>
                             <button class="btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.8rem" onclick="abrirModalMovel(${amb.Id}, ${idProjeto})"><i class='bx bx-plus'></i> Adicionar Móvel</button>
                         </div>
                         <div style="font-size:0.9rem; color:var(--text-secondary); display:flex; justify-content:space-between">
@@ -728,13 +860,7 @@ async function abrirPainelProjeto(idProjeto) {
 
         // Calcula Total Geral e Lucratividade
         const totalVenda = moveis.reduce((acc, m) => acc + ((m.Preco || 0) * (m.Quantidade || 1)), 0);
-        const totalCusto = materiais.reduce((acc, m) => acc + ((m.PrecoUnitario || 0) * (m.Quantidade || 1)), 0);
-        const lucroBruto = totalVenda - totalCusto;
-        const margem = totalVenda > 0 ? (lucroBruto / totalVenda) * 100 : 0;
-
-        let profitClass = 'profit-high';
-        if (margem < 30) profitClass = 'profit-low';
-        else if (margem < 50) profitClass = 'profit-med';
+        const totalGeral = materiais.reduce((acc, m) => acc + ((m.PrecoUnitario || 0) * (m.Quantidade || 1)), 0);
 
         container.innerHTML = `
             <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 2rem;">
@@ -776,18 +902,24 @@ async function abrirPainelProjeto(idProjeto) {
                             ${utils.formatMoney(totalVenda)}
                         </div>
                         
-                        <div class="profit-badge ${profitClass}" style="width: 100%; margin-bottom: 1rem; justify-content: center;">
-                            <i class='bx bx-trending-up'></i> Margem: ${margem.toFixed(1)}%
-                        </div>
-
                         <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 1.5rem;">
-                            Custo Materiais: ${utils.formatMoney(totalCusto)}<br>
-                            Lucro Estimado: ${utils.formatMoney(lucroBruto)}
+                            Custo Base (Materiais): ${utils.formatMoney(totalGeral)}<br>
                         </div>
 
-                        <button class="btn-primary" style="width:100%; background: var(--gradient-neon);" onclick="abrirPreviewOrcamento(${projeto.Id || idProjeto})">
-                            <i class='bx bx-show'></i> Preview Orçamento
-                        </button>
+                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed rgba(255,255,255,0.1)">
+                            <h4 style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:0.8rem"><i class='bx bx-calculator'></i> Margens e Orçamento</h4>
+                            <div class="form-group" style="margin-bottom:0.8rem">
+                                <label class="form-label" style="font-size:0.75rem; margin-bottom:4px">Margem de Erro (%)</label>
+                                <input type="number" id="proj-calc-margem" class="form-input" style="padding: 4px 8px; font-size:0.85rem; background: rgba(0,0,0,0.2)" value="10" min="0">
+                            </div>
+                            <div class="form-group" style="margin-bottom:1rem">
+                                <label class="form-label" style="font-size:0.75rem; margin-bottom:4px">Mão de Obra (%)</label>
+                                <input type="number" id="proj-calc-mao-obra" class="form-input" style="padding: 4px 8px; font-size:0.85rem; background: rgba(0,0,0,0.2)" value="200" min="0">
+                            </div>
+                            <button class="btn-primary" style="width:100%; background: var(--gradient-neon); margin-bottom: 1.2rem;" onclick="abrirPreviewOrcamento(${projeto.Id || idProjeto})">
+                                <i class='bx bx-show'></i> Gerar Orçamento
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -805,6 +937,105 @@ async function abrirPainelProjeto(idProjeto) {
 
     } catch(err) {
         container.innerHTML = `<div class="alert error">Falha ao abrir painel: ${err.message}</div>`;
+    }
+}
+
+async function excluirMovelDoProjeto(idMovel, idProjeto) {
+    utils.confirmar(
+        'Tem certeza que deseja excluir este item?',
+        async () => {
+            try {
+                await window.apiFetch(`/moveis/${idMovel}`, { method: 'DELETE' });
+                utils.showToast('Móvel excluído!', 'success');
+                abrirPainelProjeto(idProjeto);
+            } catch (err) {
+                utils.showToast('Erro ao excluir: ' + err.message, 'error');
+            }
+        },
+        'Excluir Móvel',
+        'Excluir'
+    );
+}
+
+async function excluirAmbienteDoProjeto(idAmbiente, idProjeto) {
+    utils.confirmar(
+        'Tem certeza que deseja excluir este item?',
+        async () => {
+            try {
+                await window.apiFetch(`/ambientes/${idAmbiente}`, { method: 'DELETE' });
+                utils.showToast('Ambiente excluído com sucesso!', 'success');
+                abrirPainelProjeto(idProjeto);
+            } catch (err) {
+                utils.showToast('Erro ao excluir: ' + err.message, 'error');
+            }
+        },
+        'Excluir Ambiente',
+        'Excluir'
+    );
+}
+
+async function calcularOrcamentoDinamico(idProjeto) {
+    const margem = parseFloat(document.getElementById('proj-calc-margem').value);
+    const maoObra = parseFloat(document.getElementById('proj-calc-mao-obra').value);
+
+    if (isNaN(margem) || margem < 0) {
+        utils.showToast('Por favor, informe uma margem de erro válida.', 'error');
+        return;
+    }
+    if (isNaN(maoObra) || maoObra < 0) {
+        utils.showToast('Por favor, informe uma porcentagem de mão de obra válida.', 'error');
+        return;
+    }
+
+    const btn = event.currentTarget;
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Calculando...";
+
+    try {
+        const [moveis, materiais] = await Promise.all([
+            window.apiFetch('/moveis/projeto/' + idProjeto),
+            window.apiFetch('/moveis-materiais/projeto/' + idProjeto)
+        ]);
+
+        let itensAtualizados = 0;
+
+        for (const m of moveis) {
+            const materiaisDoMovel = materiais.filter(mat => mat.MoveisId === m.Id);
+            
+            if (materiaisDoMovel.length > 0) {
+                const custoMateriais = materiaisDoMovel.reduce((acc, mat) => acc + ((mat.PrecoUnitario || 0) * (mat.Quantidade || 0)), 0);
+                
+                const custoComMargem = custoMateriais * (1 + margem / 100);
+                const precoVenda = custoComMargem * (1 + maoObra / 100);
+
+                await window.apiFetch('/moveis/' + m.Id, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        Nome: m.Nome,
+                        Tipo: m.Tipo,
+                        Material: m.Material,
+                        Quantidade: m.Quantidade,
+                        Preco: parseFloat(precoVenda.toFixed(2))
+                    })
+                });
+                itensAtualizados++;
+            }
+        }
+
+        if (itensAtualizados > 0) {
+            utils.showToast(`Orçamento recalculado para ${itensAtualizados} móveis com materiais vinculados!`, 'success');
+        } else {
+            utils.showToast('Nenhum móvel possui materiais vinculados para cálculo dinâmico. Adicione materiais primeiro.', 'info');
+        }
+
+        abrirPainelProjeto(idProjeto);
+
+    } catch (err) {
+        utils.showToast('Erro ao calcular: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
     }
 }
 
@@ -1041,11 +1272,11 @@ async function salvarVinculoMaterial(event, idMovel, nomeMovel) {
 
 async function removerMaterialDoMovel(idMovel, idMaterial, nomeMovel) {
     utils.confirmar(
-        'Remover este material do móvel selecionado?',
+        'Tem certeza que deseja excluir este item?',
         async () => {
             try {
                 await window.apiFetch('/moveis-materiais/remove', {
-                    method: 'DELETE',
+                    method: 'POST',
                     body: JSON.stringify({ moveisId: idMovel, materiaisId: idMaterial })
                 });
                 abrirModalMateriaisMovel(idMovel, nomeMovel);
@@ -1133,7 +1364,7 @@ async function renderizarMateriais(container) {
 // BUG 6 FIX: Modal elegante no lugar de confirm/alert nativos
 async function excluirRegistro(entidadeType, idRecord) {
     utils.confirmar(
-        'Esta ação é irreversível. Todos os dados relacionados serão removidos permanentemente.',
+        'Tem certeza que deseja excluir este item?',
         async () => {
             try {
                 await window.apiFetch(`/${entidadeType}/${idRecord}`, { method: 'DELETE' });
@@ -1414,17 +1645,9 @@ function abrirModalEditarProjeto(p) {
 
 
 /**
- * GERA PROPOSTA COMERCIAL NO ESTILO KÉDMA MÓVEIS
- * Modelo baseado na proposta real do cliente, com:
- * - Cabeçalho da empresa com número da proposta e data
- * - Seções por ambiente com tabela de peças numeradas
- * - Valor unitário e total por item
- * - Subtotal por ambiente
- * - Bloco de investimento total
- * - Condições de pagamento e OBS
- * - Área de assinatura e consultora
+ * GERA PROPOSTA COMERCIAL NO ESTILO KÉDMA MÓVEIS (PREMIUM DESIGN)
  */
-async function gerarOrcamentoProfissional(idProjeto, isFromPreview = false) {
+async function gerarOrcamentoProfissional(idProjeto, isFromPreview = false, margem = 10, maoObra = 200) {
     const printArea = document.getElementById('print-area');
     printArea.innerHTML = `<div style="padding:2rem; text-align:center">Gerando proposta...</div>`;
 
@@ -1436,463 +1659,415 @@ async function gerarOrcamentoProfissional(idProjeto, isFromPreview = false) {
         ]);
 
         const hoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-        const totalGeral = moveis.reduce((acc, m) => acc + ((m.Preco || 0) * (m.Quantidade || 1)), 0);
+        
+        const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        const d = new Date();
+        const dataPorExtenso = `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
+        
+        const totalGeralBase = moveis.reduce((acc, m) => acc + ((m.Preco || 0) * (m.Quantidade || 1)), 0);
+        const totalGeral = totalGeralBase * (1 + margem / 100) * (1 + maoObra / 100);
 
-        // CONFIGURAÇÃO DE DESIGN POR EMPRESA (DINÂMICO)
-        const primaryColor   = projeto.CorPrimaria || '#8B6914';
-        const secondaryColor = (projeto.CorPrimaria ? projeto.CorPrimaria + '10' : '#fafaf5'); // 10% opacidade
-        const accentColor    = projeto.CorPrimaria || '#d4af37';
+        // CONFIGURAÇÃO DE DESIGN POR EMPRESA
+        const primaryColor   = projeto.CorPrimaria || '#2A2A2A'; 
+        const secondaryColor = '#fdfbf7'; 
+        const accentColor    = '#d4af37'; 
         const logoUrl        = projeto.LogoUrl || '/banner.png';
         const temBanner      = !!projeto.LogoUrl;
 
-        // ============================================================
-        // ESTILOS DA PROPOSTA (isolados da UI do sistema)
-        // ============================================================
         let html = `
         <style>
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap');
+            
             .prop-wrap {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                color: #1a1a1a;
-                background: #fff;
+                font-family: 'Outfit', sans-serif;
+                color: #2C3033;
+                background: ${secondaryColor};
                 max-width: 820px;
                 margin: 0 auto;
-                padding: ${isPersonalize ? '0' : '40px 50px'};
+                padding: 50px 60px;
+                box-sizing: border-box;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.05);
             }
             .prop-banner {
                 width: 100%;
                 display: ${temBanner ? 'block' : 'none'};
-                margin-bottom: 20px;
+                margin-bottom: 30px;
+                border-radius: 8px;
             }
-            .prop-inner-padding {
-                padding: ${isPersonalize ? '20px 40px' : '0'};
-            }
-            /* ---- CABEÇALHO ---- */
+            /* ---- HEADER LUTO E LUXO ---- */
             .prop-header {
                 display: ${temBanner ? 'none' : 'flex'};
                 justify-content: space-between;
-                align-items: flex-start;
-                border-bottom: 3px solid ${primaryColor};
-                padding-bottom: 20px;
-                margin-bottom: 28px;
+                align-items: flex-end;
+                border-bottom: 1px solid #E5E5E5;
+                padding-bottom: 25px;
+                margin-bottom: 40px;
             }
-            .prop-empresa-nome {
-                font-size: 2rem;
-                font-weight: 700;
-                letter-spacing: 3px;
-                color: #333;
-                text-transform: uppercase;
-            }
-            .prop-empresa-sub {
-                font-size: 0.8rem;
-                letter-spacing: 5px;
+            .prop-header-left h1 {
+                font-family: 'Playfair Display', serif;
+                font-size: 2.8rem;
+                font-weight: 600;
                 color: ${primaryColor};
-                text-transform: uppercase;
-                margin-top: 2px;
+                margin: 0;
+                line-height: 1;
+                letter-spacing: -0.5px;
             }
-            .prop-num-bloco {
-                text-align: right;
-                font-family: 'Arial', sans-serif;
-            }
-            .prop-num-bloco .prop-num {
-                font-size: 0.75rem;
+            .prop-header-left p {
+                font-size: 0.9rem;
                 text-transform: uppercase;
+                letter-spacing: 4px;
                 color: #888;
-                letter-spacing: 1px;
+                margin: 8px 0 0 0;
             }
-            .prop-num-bloco strong {
+            .prop-header-right {
+                text-align: right;
+            }
+            .prop-header-right span {
+                display: block;
+                font-size: 0.8rem;
+                text-transform: uppercase;
+                color: #A0A0A0;
+                letter-spacing: 1.5px;
+                margin-bottom: 4px;
+            }
+            .prop-header-right strong {
                 display: block;
                 font-size: 1.1rem;
-                color: #333;
-            }
-            /* ---- CLIENTE ---- */
-            .prop-cliente-bloco {
-                background: ${secondaryColor};
-                border-left: 4px solid ${primaryColor};
-                padding: 14px 20px;
-                margin-bottom: 28px;
-                border-radius: 0 6px 6px 0;
-            }
-            .prop-cliente-bloco h2 {
-                font-size: 1rem;
-                font-family: 'Arial', sans-serif;
-                text-transform: uppercase;
-                letter-spacing: 2px;
                 color: ${primaryColor};
-                margin: 0 0 8px 0;
+                font-weight: 500;
             }
-            .prop-cliente-bloco p {
-                margin: 2px 0;
-                font-size: 0.95rem;
-            }
-            /* ---- TÍTULO PROPOSTA ---- */
-            .prop-titulo {
-                font-size: 1rem;
-                text-transform: uppercase;
-                letter-spacing: 2px;
-                color: ${primaryColor};
-                font-family: 'Arial', sans-serif;
-                border-bottom: 1px solid #ddd;
-                padding-bottom: 8px;
-                margin-bottom: 25px;
-                font-weight: bold;
-            }
-            /* ---- AMBIENTE ---- */
-            .prop-ambiente-header {
-                background: linear-gradient(90deg, #333, ${primaryColor});
-                color: #fff;
-                padding: 10px 16px;
-                font-family: 'Arial', sans-serif;
-                font-size: 0.9rem;
-                font-weight: 700;
-                letter-spacing: 2px;
-                text-transform: uppercase;
-                margin-bottom: 0;
-                border-radius: 4px 4px 0 0;
-            }
-            /* ---- TABELA DE ITENS ---- */
-            .prop-table {
-                width: 100%;
-                border-collapse: collapse;
-                font-family: 'Arial', sans-serif;
-                font-size: 0.88rem;
-                margin-bottom: 0;
-            }
-            .prop-table thead tr {
-                background: ${isPersonalize ? '#f8f9fa' : '#f0e8d0'};
-            }
-            .prop-table thead th {
-                padding: 10px 12px;
-                text-align: left;
-                font-size: 0.75rem;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-                color: #333;
-                border-bottom: 2px solid ${primaryColor};
-            }
-            .prop-table thead th:last-child,
-            .prop-table thead th:nth-child(3),
-            .prop-table thead th:nth-child(4) {
-                text-align: right;
-            }
-            .prop-table tbody tr {
-                border-bottom: 1px solid #eee;
-            }
-            .prop-table tbody tr:nth-child(even) {
-                background: #fcfcfc;
-            }
-            .prop-table tbody td {
-                padding: 12px;
-                vertical-align: top;
-                color: #333;
-            }
-            .prop-table tbody td:nth-child(3),
-            .prop-table tbody td:nth-child(4),
-            .prop-table tbody td:nth-child(5) {
-                text-align: right;
-                white-space: nowrap;
-            }
-            .prop-table td.item-num {
-                color: ${primaryColor};
-                font-weight: 700;
-                width: 36px;
-                font-size: 0.8rem;
-            }
-            .prop-table td.item-desc strong {
-                display: block;
-                color: #1a1a1a;
-                font-size: 0.95rem;
-            }
-            .prop-table td.item-desc small {
-                color: #666;
-                font-size: 0.8rem;
-                line-height: 1.4;
-            }
-            /* ---- SUBTOTAL ---- */
-            .prop-subtotal-row {
-                background: ${secondaryColor} !important;
-            }
-            .prop-subtotal-row td {
-                padding: 10px 12px !important;
-                font-weight: 700 !important;
-                color: ${primaryColor} !important;
-            }
-            /* ---- BLOCO FINANCEIRO ---- */
-            .prop-financeiro {
+
+            /* ---- CLIENTE INFO ---- */
+            .prop-client {
                 display: grid;
-                grid-template-columns: 1fr auto;
-                gap: 24px;
-                margin: 30px 0;
-                align-items: start;
-            }
-            .prop-condicoes {
-                font-family: 'Arial', sans-serif;
-            }
-            .prop-condicoes h4 {
-                font-size: 0.85rem;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-                color: ${primaryColor};
-                margin: 0 0 10px 0;
-                border-bottom: 1px solid #ddd;
-                padding-bottom: 5px;
-            }
-            .prop-condicoes p {
-                font-size: 0.85rem;
-                margin: 5px 0;
-                color: #444;
-                line-height: 1.5;
-            }
-            .prop-total-box {
-                background: ${primaryColor};
-                color: #fff;
-                padding: 25px 35px;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                background: #fff;
+                padding: 25px 30px;
                 border-radius: 8px;
-                text-align: center;
-                min-width: 220px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+                border: 1px solid #EAEAEA;
+                margin-bottom: 40px;
             }
-            .prop-total-box .label {
-                font-family: 'Arial', sans-serif;
+            .prop-client-label {
                 font-size: 0.75rem;
+                text-transform: uppercase;
                 letter-spacing: 2px;
-                text-transform: uppercase;
-                color: ${isPersonalize ? '#fff' : '#d4af37'};
-                margin-bottom: 8px;
-                opacity: 0.9;
-            }
-            .prop-total-box .valor {
-                font-size: 2.2rem;
-                font-weight: 700;
-                color: #fff;
-                letter-spacing: 1px;
-            }
-            .prop-total-box .vista {
-                font-size: 0.8rem;
-                color: #fff;
-                margin-top: 10px;
-                background: rgba(0,0,0,0.2);
-                padding: 5px;
-                border-radius: 4px;
-            }
-            /* ---- OBS ---- */
-            .prop-obs {
-                background: #f8f9fa;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                padding: 15px 20px;
-                font-family: 'Arial', sans-serif;
-                font-size: 0.85rem;
-                color: #555;
-                line-height: 1.6;
-                margin-bottom: 30px;
-            }
-            .prop-obs strong {
-                color: #333;
-                display: block;
+                color: #999;
                 margin-bottom: 5px;
-                text-transform: uppercase;
-                font-size: 0.8rem;
-                letter-spacing: 1px;
             }
-            /* ---- VALIDADE ---- */
-            .prop-validade {
-                font-family: 'Arial', sans-serif;
-                font-size: 0.85rem;
-                color: #777;
-                text-align: center;
-                margin-bottom: 35px;
+            .prop-client-value {
+                font-size: 1.1rem;
+                color: #1A1A1A;
+                font-weight: 500;
+            }
+            .prop-client-value.highlight {
+                font-family: 'Playfair Display', serif;
+                font-size: 1.4rem;
+                color: ${accentColor};
                 font-style: italic;
             }
-            /* ---- ASSINATURA ---- */
-            .prop-assinatura {
+
+            /* ---- PROPOSAL ITEMS LIST ---- */
+            .prop-title {
+                font-family: 'Playfair Display', serif;
+                font-size: 1.6rem;
+                color: ${primaryColor};
+                margin-bottom: 25px;
+                text-align: center;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+            }
+            
+            .prop-ambiente {
+                margin-bottom: 35px;
+                page-break-inside: avoid;
+            }
+            .prop-ambiente h3 {
+                font-size: 1.1rem;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                color: ${primaryColor};
+                border-bottom: 1px dashed #D0D0D0;
+                padding-bottom: 10px;
+                margin-bottom: 15px;
+            }
+            
+            .prop-item {
                 display: flex;
                 justify-content: space-between;
-                margin-top: 40px;
-                padding-top: 20px;
-                border-top: 1px solid #ddd;
-                font-family: 'Arial', sans-serif;
+                align-items: flex-start;
+                padding: 12px 0;
+                border-bottom: 1px solid #F0F0F0;
             }
-            .prop-assinatura .bloco {
-                text-align: center;
-                width: 42%;
+            .prop-item-desc {
+                flex-grow: 1;
+                padding-right: 20px;
             }
-            .prop-assinatura .linha {
-                border-top: 1.5px solid #333;
+            .prop-item-desc strong {
+                display: block;
+                font-size: 1rem;
+                font-weight: 500;
+                color: #222;
+                margin-bottom: 4px;
+                text-transform: uppercase;
+            }
+            .prop-item-desc p {
+                margin: 0;
+                font-size: 0.85rem;
+                color: #666;
+                line-height: 1.5;
+            }
+            .prop-item-values {
+                text-align: right;
+                min-width: 140px;
+            }
+            .prop-item-values .qtd {
+                font-size: 0.8rem;
+                color: #888;
+                display: block;
+                margin-bottom: 2px;
+            }
+            .prop-item-values .total {
+                font-size: 1.05rem;
+                font-weight: 600;
+                color: ${primaryColor};
+            }
+            
+            .prop-subtotal {
+                text-align: right;
+                padding: 15px 0;
+                font-size: 0.95rem;
+                color: #555;
+            }
+            .prop-subtotal strong {
+                color: ${accentColor};
+                font-size: 1.1rem;
+            }
+
+            /* ---- FINANCIAL SUMMARY ---- */
+            .prop-summary {
+                background: ${primaryColor};
+                color: #fff;
+                padding: 35px;
+                border-radius: 12px;
+                display: grid;
+                grid-template-columns: 2fr 1fr;
+                gap: 30px;
+                align-items: center;
+                margin: 40px 0;
+            }
+            .prop-summary-text h4 {
+                font-family: 'Playfair Display', serif;
+                font-size: 1.4rem;
+                margin: 0 0 15px 0;
+                color: ${accentColor};
+            }
+            .prop-summary-text p {
+                font-size: 0.9rem;
+                line-height: 1.6;
+                opacity: 0.9;
+                margin: 0 0 10px 0;
+            }
+            .prop-summary-value {
+                text-align: right;
+            }
+            .prop-summary-value .label {
+                font-size: 0.8rem;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                opacity: 0.8;
                 margin-bottom: 8px;
             }
-            .prop-assinatura p {
-                font-size: 0.9rem;
-                margin: 0;
-                color: #333;
-                font-weight: bold;
+            .prop-summary-value .total {
+                font-family: 'Playfair Display', serif;
+                font-size: 2.8rem;
+                font-weight: 600;
+                color: #fff;
+                line-height: 1;
             }
-            .prop-assinatura small {
+            .prop-summary-value .vista {
+                display: inline-block;
+                background: rgba(255,255,255,0.1);
+                padding: 6px 12px;
+                border-radius: 20px;
+                font-size: 0.85rem;
+                margin-top: 15px;
+                color: ${accentColor};
+            }
+
+            /* ---- OBS & FOOTER ---- */
+            .prop-obs {
+                background: #fff;
+                padding: 25px;
+                border-radius: 8px;
+                border-left: 3px solid ${accentColor};
+                font-size: 0.85rem;
+                line-height: 1.7;
+                color: #555;
+                margin-bottom: 40px;
+            }
+            .prop-obs strong {
+                color: #222;
+                text-transform: uppercase;
                 font-size: 0.8rem;
-                color: #666;
+                letter-spacing: 1px;
             }
-            /* ---- RODAPÉ ---- */
-            .prop-rodape {
-                margin-top: 30px;
-                padding: 20px 0;
-                border-top: 2px solid ${primaryColor};
+            
+            .prop-signatures {
                 display: flex;
                 justify-content: space-between;
-                align-items: center;
-                font-family: 'Arial', sans-serif;
-                font-size: 0.8rem;
-                color: #666;
+                margin-top: 60px;
+                padding-top: 30px;
             }
+            .prop-sig-block {
+                text-align: center;
+                width: 45%;
+            }
+            .prop-sig-line {
+                border-top: 1px solid #CCC;
+                margin-bottom: 10px;
+            }
+            .prop-sig-block strong {
+                display: block;
+                font-size: 1rem;
+                color: #111;
+            }
+            .prop-sig-block span {
+                font-size: 0.8rem;
+                color: #888;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+            
+            .prop-footer-date {
+                text-align: center;
+                font-size: 0.85rem;
+                color: #999;
+                margin-top: 40px;
+                font-style: italic;
+            }
+
             @media print {
-                .prop-wrap { width: 100%; max-width: none; padding: 0; margin: 0; }
-                .prop-ambiente-bloco { page-break-inside: avoid; }
+                .prop-wrap { width: 100%; padding: 0; box-shadow: none; background: #fff; }
+                .prop-summary { break-inside: avoid; }
             }
         </style>
 
         <div class="prop-wrap">
-            
-            <!-- BANNER DA EMPRESA -->
             <img src="${logoUrl}" class="prop-banner" alt="Logo">
 
-            <div class="prop-inner-padding">
-                <!-- ===== CABEÇALHO PADRÃO (OCULTO SE PERSONALIZE) ===== -->
-                <div class="prop-header">
-                    <div>
-                        <div class="prop-empresa-nome">${projeto.EmpresaNome || 'Design Studio'}</div>
-                        <div class="prop-empresa-sub">Móveis Planejados</div>
-                    </div>
-                    <div class="prop-num-bloco">
-                        <span class="prop-num">Proposta Nº</span>
-                        <strong>#${String(idProjeto).padStart(4, '0')}</strong>
-                        <span class="prop-num" style="display:block; margin-top:6px">Data de emissão</span>
-                        <strong>${hoje}</strong>
-                    </div>
+            <div class="prop-header">
+                <div class="prop-header-left">
+                    <h1>${projeto.EmpresaNome || 'KÉDMA'}</h1>
+                    <p>MÓVEIS PLANEJADOS</p>
                 </div>
-
-                <!-- DADOS EXTRAS (SE TIVER BANNER) -->
-                <div style="display: ${temBanner ? 'flex' : 'none'}; justify-content: space-between; margin-bottom: 25px; font-family: Arial; font-size: 0.9rem;">
-                    <span>Proposta: <strong>#${String(idProjeto).padStart(4, '0')}</strong></span>
-                    <span>Data: <strong>${hoje}</strong></span>
+                <div class="prop-header-right">
+                    <span>PROPOSTA COMERCIAL</span>
+                    <strong>#${String(idProjeto).padStart(4, '0')}</strong>
+                    <span style="margin-top: 10px">DATA</span>
+                    <strong>${hoje}</strong>
                 </div>
+            </div>
 
-                <!-- ===== DADOS DO CLIENTE ===== -->
-                <div class="prop-cliente-bloco">
-                    <h2>Proposta para</h2>
-                    <p><strong>${projeto.ClienteNome || 'Cliente'}</strong></p>
-                    ${projeto.ClienteTelefone ? `<p>📞 ${projeto.ClienteTelefone}</p>` : ''}
-                    ${projeto.ClienteEmail ? `<p>✉️ ${projeto.ClienteEmail}</p>` : ''}
-                    ${projeto.Endereco ? `<p>📍 ${projeto.Endereco}</p>` : ''}
+            <div class="prop-client">
+                <div>
+                    <div class="prop-client-label">Proposta Para</div>
+                    <div class="prop-client-value highlight">${projeto.ClienteNome || 'Cliente'}</div>
                 </div>
+                <div style="text-align: right">
+                    <div class="prop-client-label">Local da Obra</div>
+                    <div class="prop-client-value">${projeto.Endereco || 'Não informado'}</div>
+                </div>
+            </div>
 
-                <!-- ===== TÍTULO ===== -->
-                <div class="prop-titulo">Proposta Comercial — ${projeto.Nome}</div>
+            <h2 class="prop-title">Detalhamento do Projeto</h2>
         `;
 
-        // ===== AMBIENTES =====
+        // Iterar sobre Ambientes
         let ambienteNum = 1;
         for (const amb of ambientes) {
             const moveisAmb = moveis.filter(m => m.AmbienteId === amb.Id);
             let subtotal = 0;
-
-            let rows = '';
-            moveisAmb.forEach((m, idx) => {
-                const totalMovel = (m.Preco || 0) * (m.Quantidade || 1);
-                subtotal += totalMovel;
-                rows += `
-                <tr>
-                    <td class="item-num">${String(idx + 1).padStart(2, '0')}.</td>
-                    <td class="item-desc">
-                        <strong>${m.Nome}</strong>
-                        ${m.Tipo ? `<small>${m.Tipo}</small>` : ''}
-                        ${m.Material ? `<small>Material: ${m.Material}</small>` : ''}
-                    </td>
-                    <td>${m.Quantidade || 1}</td>
-                    <td>${m.Preco ? utils.formatMoney(m.Preco) : '—'}</td>
-                    <td><strong>${utils.formatMoney(totalMovel)}</strong></td>
-                </tr>`;
-            });
-
+            
+            html += `<div class="prop-ambiente">
+                        <h3>${ambienteNum}. ${amb.nome_ambiente}</h3>`;
+            
             if (moveisAmb.length === 0) {
-                rows = `<tr><td colspan="5" style="text-align:center; color:#aaa; padding:16px; font-style:italic">Nenhum item cadastrado neste ambiente.</td></tr>`;
-            }
+                html += `<p style="font-size: 0.85rem; color:#aaa; font-style:italic">Nenhum item adicionado.</p>`;
+            } else {
+                moveisAmb.forEach(m => {
+                    const custoMaterial = (m.Preco || 0);
+                    const custoComMargem = custoMaterial * (1 + margem / 100);
+                    const precoVendaItem = custoComMargem * (1 + maoObra / 100);
+                    const totalMovel = precoVendaItem * (m.Quantidade || 1);
 
-            html += `
-            <div class="prop-ambiente-bloco" style="margin-bottom:24px; page-break-inside:avoid;">
-                <div class="prop-ambiente-header">${ambienteNum}. ${amb.nome_ambiente}</div>
-                <table class="prop-table">
-                    <thead>
-                        <tr>
-                            <th style="width:36px">#</th>
-                            <th>Descrição do Item</th>
-                            <th style="width:50px">Qtd</th>
-                            <th style="width:110px">Valor Unit.</th>
-                            <th style="width:110px">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rows}
-                        <tr class="prop-subtotal-row">
-                            <td colspan="3" style="text-align:right; font-size:0.8rem; letter-spacing:1px;">SUBTOTAL ${amb.nome_ambiente.toUpperCase()}</td>
-                            <td></td>
-                            <td>${utils.formatMoney(subtotal)}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>`;
+                    subtotal += totalMovel;
+                    const descText = m.Tipo ? `${m.Tipo} ${m.Material ? '- ' + m.Material : ''}` : (m.Material || '');
+                    
+                    html += `
+                        <div class="prop-item">
+                            <div class="prop-item-desc">
+                                <strong>${m.Nome}</strong>
+                                ${descText ? `<p>${descText}</p>` : ''}
+                            </div>
+                            <div class="prop-item-values">
+                                <span class="qtd">${m.Quantidade}x ${utils.formatMoney(precoVendaItem)}</span>
+                                <span class="total">${utils.formatMoney(totalMovel)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    <div class="prop-subtotal">
+                        Subtotal ${amb.nome_ambiente}: <strong>${utils.formatMoney(subtotal)}</strong>
+                    </div>`;
+            }
+            
+            html += `</div>`;
             ambienteNum++;
         }
 
-        // ===== BLOCO FINANCEIRO =====
-        const totalAVista = totalGeral * 0.9; // 10% de desconto à vista
+        // BLOCO FINANCEIRO
+        const totalAVista = totalGeral * 0.9;
         html += `
-            <div class="prop-financeiro">
-                <div class="prop-condicoes">
-                    <h4>💳 Condições de Pagamento</h4>
-                    <p>✔ Padrão: <strong>50% de entrada</strong> + 50% na entrega/finalização do serviço.</p>
-                    <p>✔ Podemos negociar conforme a necessidade do cliente.</p>
-                    <p>✔ <strong>Desconto especial de 10%</strong> para pagamento à vista.</p>
-
-                    <h4 style="margin-top:14px">🔨 Prazo de Produção</h4>
-                    <p>✔ Produção: <strong>30 a 45 dias</strong> após aprovação e entrada.</p>
-                    <p>✔ Montagem: <strong>3 a 5 dias úteis</strong> (conforme tamanho do projeto).</p>
+            <div class="prop-summary">
+                <div class="prop-summary-text">
+                    <h4>Condições de Pagamento</h4>
+                    <p>Valor de à vista: <strong>${utils.formatMoney(totalAVista)}</strong></p>
+                    <p>Padrão <strong>50% de entrada e 50% condicionado à finalização do serviço</strong>, porém podemos negociar.</p>
                 </div>
-                <div class="prop-total-box">
-                    <div class="label">Valor da Proposta</div>
-                    <div class="valor">${utils.formatMoney(totalGeral)}</div>
-                    ${totalGeral > 0 ? `<div class="vista">À vista: <strong>${utils.formatMoney(totalAVista)}</strong> (10% desc.)</div>` : ''}
+                <div class="prop-summary-value">
+                    <div class="label">Soma de todos os valores</div>
+                    <div class="total">${utils.formatMoney(totalGeral)}</div>
+                    <div class="vista">À VISTA: ${utils.formatMoney(totalAVista)}</div>
                 </div>
             </div>
 
-            <!-- ===== OBS ===== -->
             <div class="prop-obs">
-                <strong>Observações Gerais</strong>
-                ${(projeto.TermosPadrao || '✔ Todas as dobradiças com amortecedor (soft-close).\n✔ Fundos em MDF de 6mm, internamente em MDF Branco TX.\n✔ Corrediças telescópicas reforçadas em todas as gavetas.\n✔ Projeto sujeito a ajustes após visita técnica de medição.').replace(/\n/g, '<br>')}
+                <strong>OBSERVAÇÕES:</strong><br>
+                TODAS AS DOBRADIÇAS COM AMORTECEDOR, FUNDOS DE 6MM, INTERNAMENTE EM MDF BRANCO TX E CORREDIÇAS TELESCOPICAS REFORÇADAS.<br>
+                PARTE ELETRICA ASSIM COMO OS LEDS, POR CONTA DO CLIENTE, FAREMOS TODOS OS RASGOS NECESSARIOS PARA FIAÇÃO E LED.<br><br>
+                <em>ORÇAMENTO VALIDO POR 15 DIAS.</em>
             </div>
 
-            <!-- ===== VALIDADE ===== -->
-            <div class="prop-validade">⏳ Esta proposta é válida por <strong>15 dias</strong> a partir da data de emissão.</div>
-
-            <!-- ===== ASSINATURA ===== -->
-            <div class="prop-assinatura">
-                <div class="bloco">
-                    <div class="linha"></div>
-                    <p><strong>${projeto.ClienteNome || 'Contratante'}</strong></p>
-                    <small>Assinatura do Cliente / Aprovação</small>
+            <div class="prop-signatures">
+                <div class="prop-sig-block">
+                    <div class="prop-sig-line"></div>
+                    <strong>${projeto.ClienteNome || 'Cliente'}</strong>
+                    <span>Aprovação do Cliente</span>
                 </div>
-                <div class="bloco">
-                    <div class="linha"></div>
-                    <p><strong>Responsável Técnico</strong></p>
-                    <small>Consultora / Empresa</small>
+                <div class="prop-sig-block">
+                    <div class="prop-sig-line"></div>
+                    <strong>CAMILA AMARAL</strong>
+                    <span>Consultora de Vendas<br>(61) 98466-5363</span>
                 </div>
             </div>
-
-            <!-- ===== RODAPÉ ===== -->
-            <div class="prop-rodape">
-                <span>${projeto.EmpresaNome || 'Design Studio'} — Móveis Planejados</span>
-                <span>${hoje}</span>
+            
+            <div class="prop-footer-date">
+                BRASILIA DF, ${dataPorExtenso.toUpperCase()}.
             </div>
-
-            </div><!-- end prop-inner-padding -->
-        </div><!-- end prop-wrap -->
+        </div>
         `;
 
         printArea.innerHTML = html;
@@ -1917,8 +2092,13 @@ async function abrirPreviewOrcamento(idProjeto) {
     previewContainer.innerHTML = `<div class="loading-spinner" style="display:block;margin:auto"></div>`;
     modal.classList.add('active');
 
+    const margemInput = document.getElementById('proj-calc-margem');
+    const maoObraInput = document.getElementById('proj-calc-mao-obra');
+    const margem = margemInput ? parseFloat(margemInput.value) || 0 : 10;
+    const maoObra = maoObraInput ? parseFloat(maoObraInput.value) || 0 : 200;
+
     // Reutiliza a função de geração de orçamento, mas passando flag de preview
-    const html = await gerarOrcamentoProfissional(idProjeto, true);
+    const html = await gerarOrcamentoProfissional(idProjeto, true, margem, maoObra);
     if (html) {
         previewContainer.innerHTML = html;
         // Armazena ID para exportação
@@ -1981,8 +2161,8 @@ function renderizarAnaliseFoto(container) {
                 <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.75rem">
                     <span style="font-size:2.5rem">🤖</span>
                     <div>
-                        <h2 style="font-size:1.5rem; margin:0; background: linear-gradient(135deg,#60a5fa,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Análise de Projeto por IA</h2>
-                        <p style="color:var(--text-secondary); margin:4px 0 0; font-size:0.9rem">Envie a renderização 3D do projeto e o Gemini AI identificará os móveis, cores e materiais automaticamente.</p>
+                        <h2 style="font-size:1.5rem; margin:0; background: linear-gradient(135deg,#60a5fa,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Cálculo do Orçamento por IA</h2>
+                        <p style="color:var(--text-secondary); margin:4px 0 0; font-size:0.9rem">Envie a renderização 3D do projeto e a IA calculará os móveis, quantidades e orçamentos automaticamente.</p>
                     </div>
                 </div>
             </div>
@@ -2130,17 +2310,9 @@ async function executarAnalise() {
 function renderizarResultadoAnalise(dados) {
     const resultadoDiv = document.getElementById('resultado-analise');
 
-    // Cards de cada móvel identificado
+    // Cards de cada móvel identificado (sem campos de preço!)
     let moveisHTML = '';
     dados.moveis.forEach((m, i) => {
-        const temSugestao = m.sugestoes_material && m.sugestoes_material.length > 0;
-        const sugestoesHTML = temSugestao
-            ? m.sugestoes_material.map(s => `
-                <span style="display:inline-block; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.2); padding:3px 10px; border-radius:20px; font-size:0.78rem; color:#60a5fa; margin:2px;">
-                    ${s.nome} — ${utils.formatMoney(s.preco)}/${s.unidade}
-                </span>`).join('')
-            : `<span style="color:var(--text-secondary); font-size:0.8rem">Nenhum material correspondente no catálogo</span>`;
-
         moveisHTML += `
             <div class="glass-panel entry-animation" style="padding:1.25rem; margin-bottom:0.75rem; border-color:rgba(139,92,246,0.2);">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem; flex-wrap:wrap; gap:0.5rem;">
@@ -2157,17 +2329,9 @@ function renderizarResultadoAnalise(dados) {
                     </div>
                 </div>
                 <p style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:0.75rem">${m.descricao}</p>
-                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <span style="font-size:0.8rem; color:var(--text-secondary)">🎨 Material:</span>
                     <span style="background:rgba(255,255,255,0.06); padding:2px 10px; border-radius:6px; font-size:0.85rem; color:var(--text-primary)">${m.cor_material}</span>
-                </div>
-                <div style="margin-top:1.25rem; padding:1rem; background:rgba(255,255,255,0.03); border:1px solid rgba(139,92,246,0.3); border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.95rem; font-weight:700; color:var(--accent-neon); text-transform:uppercase; letter-spacing:1px;">Valor Unitário:</span>
-                    <div style="display:flex; align-items:center; gap:0.5rem;">
-                        <span style="color:var(--text-secondary); font-size:1.1rem; font-weight:600;">R$</span>
-                        <input type="number" class="item-cost-input form-input" data-index="${i}" value="${m.custo_base || 0}" 
-                               style="width:140px; padding:10px; text-align:right; font-weight:800; font-size:1.1rem; border-color:var(--accent-neon); color:var(--text-primary); background:rgba(0,0,0,0.3);">
-                    </div>
                 </div>
             </div>`;
     });
@@ -2177,76 +2341,27 @@ function renderizarResultadoAnalise(dados) {
         .map(c => `<span style="background:rgba(255,255,255,0.06); padding:4px 12px; border-radius:20px; font-size:0.85rem;">${c}</span>`)
         .join('');
 
-    // Resumo do Orçamento IA
-    let orcamentoHTML = '';
-    if (dados.orcamento) {
-        window.lastAIData = dados; // Salva para recalcular se necessário
-        const rf = dados.orcamento.resumo_financeiro;
-        orcamentoHTML = `
-            <div id="budget-config-panel" class="glass-panel entry-animation" style="padding:1.5rem; margin-bottom:1rem; border-color:rgba(139,92,246,0.3); background:rgba(139,92,246,0.05);">
-                <h3 style="color:#a78bfa; margin-bottom:1.25rem;"><i class='bx bx-slider-alt'></i> Ajustar Margens antes de Finalizar</h3>
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:1rem; align-items:end;">
-                    <div class="form-group" style="margin:0">
-                        <label class="form-label" style="font-size:0.75rem">Margem de Erro (%)</label>
-                        <input type="number" id="input-margem-erro" class="form-input" value="${dados.orcamento.configuracoes.margem_erro_percent}" style="padding:8px">
-                    </div>
-                    <div class="form-group" style="margin:0">
-                        <label class="form-label" style="font-size:0.75rem">Mão de Obra (%)</label>
-                        <input type="number" id="input-mao-obra" class="form-input" value="${dados.orcamento.configuracoes.mao_obra_percent}" style="padding:8px">
-                    </div>
-                    <button class="btn-secondary" onclick="recalcularOrcamentoIA()" style="height:38px; padding:0 15px; font-size:0.85rem">
-                        <i class='bx bx-refresh'></i> Recalcular
-                    </button>
-                </div>
-            </div>
-
-            <div id="orcamento-ia-display" class="glass-panel entry-animation" style="padding:1.5rem; margin-bottom:1.5rem; border-color:rgba(59,130,246,0.3); background:rgba(59,130,246,0.05);">
-                <h3 style="color:#60a5fa; margin-bottom:1rem"><i class='bx bx-calculator'></i> Estimativa de Orçamento (IA)</h3>
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:1rem;">
-                    <div style="background:rgba(0,0,0,0.2); padding:1rem; border-radius:10px;">
-                        <span style="display:block; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase;">Soma dos Itens</span>
-                        <strong style="font-size:1.1rem; color:var(--text-primary)">${utils.formatMoney(rf.custo_materiais_base)}</strong>
-                    </div>
-                    <div style="background:rgba(0,0,0,0.2); padding:1rem; border-radius:10px;">
-                        <span style="display:block; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase;">Margem Erro (+${dados.orcamento.configuracoes.margem_erro_percent}%)</span>
-                        <strong style="font-size:1.1rem; color:#f59e0b">${utils.formatMoney(rf.margem_erro_valor)}</strong>
-                    </div>
-                    <div style="background:rgba(0,0,0,0.2); padding:1rem; border-radius:10px;">
-                        <span style="display:block; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase;">Mão de Obra (+${dados.orcamento.configuracoes.mao_obra_percent}%)</span>
-                        <strong style="font-size:1.1rem; color:#a855f7">${utils.formatMoney(rf.valor_mao_obra)}</strong>
-                    </div>
-                    <div style="background:linear-gradient(135deg, rgba(16,185,129,0.2), rgba(59,130,246,0.2)); padding:1rem; border-radius:10px; border:1px solid rgba(16,185,129,0.3)">
-                        <span style="display:block; color:var(--text-secondary); font-size:0.75rem; text-transform:uppercase;">TOTAL FINAL SUGERIDO</span>
-                        <strong style="font-size:1.4rem; color:var(--accent-neon)">${utils.formatMoney(rf.valor_total_final)}</strong>
-                    </div>
-                </div>
-                <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:1rem; font-style:italic;">* Valores estimados baseados no catálogo de materiais e análise visual da IA.</p>
-            </div>
-        `;
-    }
-
     resultadoDiv.style.display = 'block';
     resultadoDiv.innerHTML = `
         <!-- Resumo da Análise -->
         <div class="glass-panel entry-animation" style="padding:1.5rem; margin-bottom:1rem; border-color:rgba(16,185,129,0.3); background:rgba(16,185,129,0.05);">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1.5rem;">
                 <div style="flex:1; min-width:300px;">
-                    <h3 style="color:#34d399; margin-bottom:0.4rem">✅ Análise Concluída — ${dados.total_itens} ${dados.total_itens === 1 ? 'item identificado' : 'itens identificados'}</h3>
-                    <p style="color:var(--text-secondary); font-size:0.9rem; margin:0">${dados.resumo_ambiente || 'Ambiente analisado com sucesso.'}</p>
+                    <h3 style="color:#34d399; margin-bottom:0.4rem">✅ Itens Identificados Pela IA — ${dados.total_itens} ${dados.total_itens === 1 ? 'item' : 'itens'}</h3>
+                    <p style="color:var(--text-secondary); font-size:0.9rem; margin:0">${dados.resumo_ambiente || 'Móveis identificados no projeto.'}</p>
                     ${coresHTML ? `<div style="display:flex; gap:0.5rem; margin-top:0.75rem; flex-wrap:wrap; align-items:center;"><span style="font-size:0.8rem; color:var(--text-secondary)">Cores:</span>${coresHTML}</div>` : ''}
                 </div>
-                
-                <button class="btn-primary" id="btn-gerar-orc-rapido" onclick="gerarOrcamentoRapido()" style="background:linear-gradient(135deg,#10b981,#3b82f6); min-width:220px; height: 50px; font-weight:700; font-size:1rem;">
-                    <i class='bx bx-zap'></i> GERAR ORÇAMENTO AGORA
-                </button>
             </div>
         </div>
-
-        ${orcamentoHTML}
 
         <!-- Lista de Móveis -->
         <h3 style="margin-bottom:1rem; color:var(--text-secondary); font-size:0.9rem; text-transform:uppercase; letter-spacing:1px;">🪑 Móveis Identificados</h3>
         ${moveisHTML || '<p style="color:var(--text-secondary)">Nenhum móvel identificado.</p>'}
+
+        <!-- Botão Avançar para Exportação -->
+        <button class="btn-primary" onclick="abrirModalGerarOrcamentoIA()" style="background:linear-gradient(135deg,#7c3aed,#3b82f6); min-width:280px; height: 50px; font-weight:700; font-size:1.05rem; margin-top: 2rem; display: block; margin-left: auto; margin-right: auto; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);">
+            <i class='bx bx-export' style='font-size:1.3rem; vertical-align:middle; margin-right:0.5rem;'></i> EXPORTAR MÓVEIS PARA PROJETO E ORÇAR
+        </button>
     `;
 
     // Guarda resultado para geração de orçamento
@@ -2257,10 +2372,10 @@ async function abrirModalGerarOrcamentoIA() {
     const dados = window._resultadoAnaliseIA;
     if (!dados) return;
 
-    document.getElementById('modal-title').textContent = 'Gerar Orçamento a partir da Análise';
+    document.getElementById('modal-title').textContent = 'Exportar Móveis Identificados';
     const modalContent = document.getElementById('modal-content');
 
-    // Busca projetos para vincular o orçamento
+    // Busca projetos para vincular
     modalContent.innerHTML = `<div class="loading-spinner" style="display:block;margin:auto"></div>`;
     document.getElementById('sys-modal').classList.add('active');
 
@@ -2272,83 +2387,103 @@ async function abrirModalGerarOrcamentoIA() {
         });
         comboProjetos += '</select>';
 
-        // Tabela resumo dos itens que serão gerados
-        let itensHTML = dados.moveis.map((m, i) => {
-            const orcItem = dados.orcamento ? dados.orcamento.itens[i] : null;
-            // Preço de venda sugerido para este item: (Custo + Margem) + Mão de Obra
-            let precoSugerido = 0;
-            if (orcItem && dados.orcamento.configuracoes) {
-                const conf = dados.orcamento.configuracoes;
-                const custoComMargem = orcItem.custo_unitario_material * (1 + conf.margem_erro_percent / 100);
-                precoSugerido = custoComMargem + (custoComMargem * conf.mao_obra_percent / 100);
-            }
-
-            return `
-            <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
-                <td style="padding:6px 8px; font-size:0.85rem">${m.tipo}</td>
-                <td style="padding:6px 8px; font-size:0.85rem; color:var(--text-secondary)">${m.cor_material}</td>
-                <td style="padding:6px 8px; text-align:center">
-                    <input type="number" id="orcIA-qtd-${i}" value="${m.quantidade}" min="1" class="form-input" style="width:60px; padding:4px 8px; text-align:center">
-                </td>
-                <td style="padding:6px 8px; text-align:right">
-                    <input type="number" id="orcIA-preco-${i}" value="${precoSugerido.toFixed(2)}" min="0" step="0.01" class="form-input" style="width:110px; padding:4px 8px; text-align:right" placeholder="R$ 0,00">
-                </td>
-            </tr>`;
-        }).join('');
-
-        const resumoOrcamento = dados.orcamento ? `
-            <div style="background:rgba(59,130,246,0.1); padding:1rem; border-radius:8px; margin-bottom:1rem; border:1px solid rgba(59,130,246,0.2)">
-                <div style="display:flex; justify-content:space-between; font-size:0.9rem; margin-bottom:0.3rem">
-                    <span>Custo Base Materiais:</span>
-                    <strong>${utils.formatMoney(dados.orcamento.resumo_financeiro.custo_materiais_base)}</strong>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:0.9rem; margin-bottom:0.3rem">
-                    <span>Margem + Mão de Obra:</span>
-                    <strong>+ ${utils.formatMoney(dados.orcamento.resumo_financeiro.margem_erro_valor + dados.orcamento.resumo_financeiro.valor_mao_obra)}</strong>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:1rem; padding-top:0.5rem; border-top:1px solid rgba(255,255,255,0.1); margin-top:0.5rem">
-                    <strong>Total Final Sugerido:</strong>
-                    <strong style="color:var(--accent-neon)">${utils.formatMoney(dados.orcamento.resumo_financeiro.valor_total_final)}</strong>
-                </div>
-            </div>
-        ` : '';
-
         modalContent.innerHTML = `
-            ${resumoOrcamento}
             <div style="margin-bottom:1.5rem">
-                <label class="form-label">Vincular ao Projeto *</label>
+                <label class="form-label">Selecione o Projeto de Destino *</label>
                 ${comboProjetos}
             </div>
             <div style="margin-bottom:1.5rem">
-                <label class="form-label">Nome do Ambiente *</label>
-                <input type="text" id="orcIA-ambiente" class="form-input" placeholder="Ex: Suite do Casal" value="Ambiente Principal">
+                <label class="form-label">Nome do Ambiente / Cômodo *</label>
+                <input type="text" id="orcIA-ambiente" class="form-input" placeholder="Ex: Suite Casal, Cozinha" value="Identificado por IA">
             </div>
-            <div class="glass-panel" style="overflow-x:auto; padding:0; margin-bottom:1.5rem">
-                <table style="width:100%; border-collapse:collapse">
-                    <thead>
-                        <tr style="border-bottom:1px solid var(--glass-border)">
-                            <th style="padding:10px 8px; text-align:left; color:var(--text-secondary); font-size:0.8rem">Móvel</th>
-                            <th style="padding:10px 8px; text-align:left; color:var(--text-secondary); font-size:0.8rem">Material</th>
-                            <th style="padding:10px 8px; text-align:center; color:var(--text-secondary); font-size:0.8rem">Qtd</th>
-                            <th style="padding:10px 8px; text-align:right; color:var(--text-secondary); font-size:0.8rem">Valor Unit. (R$)</th>
-                        </tr>
-                    </thead>
-                    <tbody>${itensHTML}</tbody>
-                </table>
+            <div style="background:rgba(255,255,255,0.02); padding:1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05); margin-bottom:1.5rem;">
+                <span style="font-size:0.85rem; color:var(--text-secondary); display:block; margin-bottom:0.5rem">Móveis a serem exportados (${dados.moveis.length}):</span>
+                <ul style="padding-left:1.2rem; font-size:0.85rem; color:var(--text-primary); margin:0;">
+                    ${dados.moveis.map(m => `<li>${m.quantidade}x ${m.tipo} (${m.cor_material})</li>`).join('')}
+                </ul>
             </div>
-            <p style="font-size:0.8rem; color:var(--text-secondary)">💡 Preencha o valor unitário de cada móvel. Depois é só confirmar para criar o orçamento.</p>
+            <p style="font-size:0.8rem; color:var(--text-secondary)">💡 Ao confirmar, o sistema buscará os preços destes móveis no catálogo do banco de dados (Cadastros/Preços) e te direcionará para a tela do projeto para aplicar as margens e finalizar o orçamento.</p>
             <div class="modal-footer" style="padding:1.5rem 0 0; margin-top:1rem;">
                 <button type="button" class="btn-secondary" onclick="fecharModal()">Cancelar</button>
                 <button type="button" class="btn-primary" id="btn-confirmar-orcIA" onclick="confirmarOrcamentoIA()" style="background:linear-gradient(135deg,#10b981,#3b82f6);">
-                    <i class='bx bx-check'></i> Criar Orçamento
+                    <i class='bx bx-check'></i> Buscar Preços e Exportar
                 </button>
             </div>`;
     } catch (err) {
         modalContent.innerHTML = `<div class="alert error" style="display:block">${err.message}</div>`;
     }
 }
+
+async function confirmarOrcamentoIA() {
+    const dados = window._resultadoAnaliseIA;
+    if (!dados) return;
+
+    const projetoId = document.getElementById('orcIA-projetoId').value;
+    const nomeAmbiente = document.getElementById('orcIA-ambiente').value.trim();
+
+    if (!projetoId) {
+        alert('Por favor, selecione um projeto.');
+        return;
+    }
+    if (!nomeAmbiente) {
+        alert('Por favor, digite o nome do ambiente.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-confirmar-orcIA');
+    btn.disabled = true;
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Exportando...";
+
+    try {
+        // 1. Criar o Ambiente no Projeto
+        const ambiente = await window.apiFetch('/ambientes', {
+            method: 'POST',
+            body: JSON.stringify({ ProjetoId: parseInt(projetoId), Nome: nomeAmbiente, Tipo: 'Análise IA' })
+        });
+        const ambId = ambiente.id || ambiente.Id;
+
+        // 2. Buscar preços atualizados do catálogo (Tabela Materiais)
+        const materiais = await window.apiFetch('/materiais');
+
+        // 3. Cadastrar cada móvel na base de dados com o valor correspondente encontrado
+        for (let i = 0; i < dados.moveis.length; i++) {
+            const m = dados.moveis[i];
+
+            // Algoritmo determinístico de busca de preço no catálogo
+            const searchQuery = `${m.tipo} ${m.descricao} ${m.cor_material}`.toLowerCase();
+            const itemSugerido = materiais.find(mat => 
+                mat.Tipo !== 'CONFIG' && 
+                (searchQuery.includes(mat.Nome.toLowerCase()) || mat.Nome.toLowerCase().includes(m.tipo.toLowerCase()))
+            );
+
+            // Preço base do móvel no banco (ou 0 se não achar)
+            const precoCatalogo = itemSugerido ? itemSugerido.PrecoUnitario : 0;
+            
+            await window.apiFetch('/moveis', {
+                method: 'POST',
+                body: JSON.stringify({
+                    AmbienteId: ambId,
+                    Nome: m.tipo,
+                    Material: m.cor_material,
+                    Tipo: 'Planejado (IA)',
+                    Quantidade: m.quantidade,
+                    Preco: precoCatalogo
+                })
+            });
+        }
+        utils.showToast('Móveis exportados com sucesso!', 'success');
+        fecharModal();
+        setTimeout(() => abrirPainelProjeto(projetoId), 500);
+    } catch (err) {
+        utils.showToast('Erro ao exportar: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = "<i class='bx bx-check'></i> Buscar Preços e Exportar";
+    }
+}
+
 async function recalcularOrcamentoIA() {
-    const dados = window.lastAIData;
+    const dados = window._resultadoAnaliseIA;
     if (!dados) return;
 
     const margem = document.getElementById('input-margem-erro').value;
@@ -2442,7 +2577,7 @@ async function gerarOrcamentoRapido() {
         const clienteId = clienteIA.Id || clienteIA.id;
 
         // 2. Cria um Novo Projeto para esta análise
-        const nomeProj = `Orcamento IA - ${dados.resumo_ambiente ? dados.resumo_ambiente.substring(0,20) : 'Novo'} (${new Date().toLocaleTimeString()})`;
+        const nomeProj = `Cálculo do orçamento - ${dados.resumo_ambiente ? dados.resumo_ambiente.substring(0,20) : 'Novo'} (${new Date().toLocaleTimeString()})`;
         const projeto = await window.apiFetch('/projetos', {
             method: 'POST',
             body: JSON.stringify({
@@ -2519,3 +2654,73 @@ async function atualizarStatusProjeto(id, novoStatus) {
     }
 }
 
+
+// ======================================
+// CONFIGURAÇÕES DA LOJA (Minha Loja)
+// ======================================
+async function abrirModalMinhaLoja() {
+    document.getElementById('modal-title').textContent = "Configurações da Minha Loja";
+    document.getElementById('modal-content').innerHTML = `<div class="loading-spinner" style="display:block;margin:auto"></div>`;
+    document.getElementById('sys-modal').classList.add('active');
+
+    try {
+        const loja = await window.apiFetch('/empresas/minha-loja');
+        
+        document.getElementById('modal-content').innerHTML = `
+            <form id="form-minha-loja" onsubmit="salvarMinhaLoja(event)">
+                <div id="alert-form-loja" class="alert"></div>
+                
+                <div class="form-group">
+                    <label class="form-label">URL do Banner / Logo (aparecerá na proposta) *</label>
+                    <input type="text" id="ml-logo" class="form-input" placeholder="Ex: https://link-da-imagem.com/logo.png" value="${loja.LogoUrl || ''}">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Cor Primária da Proposta</label>
+                    <input type="color" id="ml-cor" class="form-input" style="height: 46px; padding: 2px; cursor: pointer;" value="${loja.CorPrimaria || '#2A2A2A'}">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Observações e Termos Padrão</label>
+                    <textarea id="ml-termos" class="form-input" style="min-height: 120px; resize: vertical;" placeholder="Insira aqui as condições de pagamento e avisos gerais...">${loja.TermosPadrao || ''}</textarea>
+                </div>
+
+                <div class="modal-footer" style="padding: 1.5rem 0 0 0; margin-top: 1rem;">
+                    <button type="button" class="btn-secondary" onclick="fecharModal()">Cancelar</button>
+                    <button type="submit" id="btn-save-loja" class="btn-primary">Salvar Configurações</button>
+                </div>
+            </form>
+        `;
+    } catch(err) {
+        document.getElementById('modal-content').innerHTML = `<div class="alert error">Erro ao carregar dados: ${err.message}</div>`;
+    }
+}
+
+async function salvarMinhaLoja(event) {
+    event.preventDefault();
+    const btn = document.getElementById('btn-save-loja');
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+
+    const payload = {
+        LogoUrl: document.getElementById('ml-logo').value,
+        CorPrimaria: document.getElementById('ml-cor').value,
+        TermosPadrao: document.getElementById('ml-termos').value
+    };
+
+    try {
+        await window.apiFetch('/empresas/minha-loja', {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        });
+        fecharModal();
+        utils.showToast('Configurações da loja atualizadas com sucesso!', 'success');
+    } catch (err) {
+        document.getElementById('alert-form-loja').className = 'alert error';
+        document.getElementById('alert-form-loja').textContent = err.message;
+        document.getElementById('alert-form-loja').style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Salvar Configurações";
+    }
+}

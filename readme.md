@@ -52,3 +52,9 @@ npm start
 
 5. **Acesse a API:**
 O servidor estará rodando em `http://localhost:3000`. Use o endpoint `POST /auth/login` para obter seu token JWT e acessar as rotas protegidas.
+
+## 📝 Mudanças recentes
+- Adicionado formulário de criação de cliente com senha e confirmação de senha para permitir acesso ao cliente ao sistema.
+- Cadastro de cliente agora envia `Senha` para backend e grava `SenhaHash` em `dbo.Clientes`.
+- Ajustes no fluxo de superadmin para gestão de empresas e criação de lojas com senha explícita de admin da loja.
+- Atualização de validações de senha no frontend para garantir força mínima e confirmação correta.

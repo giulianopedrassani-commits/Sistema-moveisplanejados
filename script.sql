@@ -54,12 +54,25 @@ BEGIN
         Nome        VARCHAR(150)  NOT NULL,
         Email       VARCHAR(150)  NULL,
         Telefone    VARCHAR(20)   NULL,
+        SenhaHash   VARCHAR(200)  NULL,
         CreatedAt   DATETIME      NOT NULL DEFAULT GETDATE(),
         UpdatedAt   DATETIME      NULL,
 
         CONSTRAINT FK_Clientes_Empresas FOREIGN KEY (EmpresaId)
             REFERENCES dbo.Empresas(Id)
     );
+END
+GO
+
+IF EXISTS (SELECT * FROM sysobjects WHERE name='Clientes' AND xtype='U')
+BEGIN
+    IF NOT EXISTS (
+        SELECT * FROM sys.columns
+        WHERE Name = N'SenhaHash' AND Object_ID = Object_ID(N'dbo.Clientes')
+    )
+    BEGIN
+        ALTER TABLE dbo.Clientes ADD SenhaHash VARCHAR(200) NULL;
+    END
 END
 GO
 

@@ -1,18 +1,21 @@
+const bcrypt = require('bcrypt');
 const { poolPromise, sql } = require('../config/db');
 
 // ==========================
 // CREATE
 // ==========================
 exports.create = async (req, res) => {
-  const { Nome, Email, Telefone } = req.body;
+  const { Nome, Email, Telefone, Senha } = req.body;
   const empresaId = req.user.empresaId; // Vem do token JWT
   const perfil = req.user.perfil;
 
   if (!empresaId && perfil !== 'superadmin') return res.status(403).json({ error: 'Acesso negado: Empresa não identificada' });
   if (!Nome) return res.status(400).json({ error: 'Nome é obrigatório' });
+  if (!Senha) return res.status(400).json({ error: 'Senha é obrigatória para o cliente' });
 
   try {
-    const pool = await poolPromise;
+    const pool = await poolPromise();
+    const senhaHash = await bcrypt.hash(Senha, 10);
 
     let targetEmpresaId = empresaId;
     if (!targetEmpresaId && perfil === 'superadmin') targetEmpresaId = 2; // Default para Jose luiz
@@ -22,10 +25,11 @@ exports.create = async (req, res) => {
       .input('Nome', sql.VarChar, Nome)
       .input('Email', sql.VarChar, Email || null)
       .input('Telefone', sql.VarChar, Telefone || null)
+      .input('SenhaHash', sql.VarChar, senhaHash)
       .query(`
-        INSERT INTO dbo.Clientes (EmpresaId, Nome, Email, Telefone)
+        INSERT INTO dbo.Clientes (EmpresaId, Nome, Email, Telefone, SenhaHash)
         OUTPUT INSERTED.Id
-        VALUES (@EmpresaId, @Nome, @Email, @Telefone)
+        VALUES (@EmpresaId, @Nome, @Email, @Telefone, @SenhaHash)
       `);
 
     res.status(201).json({
@@ -47,7 +51,7 @@ exports.findAll = async (req, res) => {
   const perfil = req.user.perfil;
 
   try {
-    const pool = await poolPromise;
+    const pool = await poolPromise();
 
     const result = await pool.request()
       .input('EmpresaId', sql.Int, empresaId)
@@ -75,7 +79,7 @@ exports.findById = async (req, res) => {
   const empresaId = req.user.empresaId;
 
   try {
-    const pool = await poolPromise;
+    const pool = await poolPromise();
 
     const perfil = req.user.perfil;
     const result = await pool.request()
@@ -105,30 +109,44 @@ exports.findById = async (req, res) => {
 // ==========================
 exports.update = async (req, res) => {
   const { id } = req.params;
-  const { Nome, Email, Telefone } = req.body;
+  const { Nome, Email, Telefone, Senha } = req.body;
   const empresaId = req.user.empresaId;
 
   if (!Nome) return res.status(400).json({ error: 'Nome é obrigatório' });
 
   try {
-    const pool = await poolPromise;
-
+    const pool = await poolPromise();
     const perfil = req.user.perfil;
-    const result = await pool.request()
+
+    let query = `
+        UPDATE dbo.Clientes
+        SET Nome = @Nome,
+            Email = @Email,
+            Telefone = @Telefone,
+            UpdatedAt = GETDATE()`;
+
+    let senhaHash;
+    if (Senha) {
+      senhaHash = await bcrypt.hash(Senha, 10);
+      query += ",\n            SenhaHash = @SenhaHash";
+    }
+
+    query += `
+        WHERE Id = @id AND (@Perfil = 'superadmin' OR EmpresaId = @EmpresaId)`;
+
+    const request = pool.request()
       .input('id', sql.Int, id)
       .input('EmpresaId', sql.Int, empresaId)
       .input('Nome', sql.VarChar, Nome)
       .input('Email', sql.VarChar, Email || null)
       .input('Telefone', sql.VarChar, Telefone || null)
-      .input('Perfil', sql.VarChar, perfil)
-      .query(`
-        UPDATE dbo.Clientes
-        SET Nome = @Nome,
-            Email = @Email,
-            Telefone = @Telefone,
-            UpdatedAt = GETDATE()
-        WHERE Id = @id AND (@Perfil = 'superadmin' OR EmpresaId = @EmpresaId)
-      `);
+      .input('Perfil', sql.VarChar, perfil);
+
+    if (Senha) {
+      request.input('SenhaHash', sql.VarChar, senhaHash);
+    }
+
+    const result = await request.query(query);
 
     if (result.rowsAffected[0] === 0) {
       return res.status(404).json({ error: 'Cliente não encontrado' });
@@ -150,7 +168,7 @@ exports.remove = async (req, res) => {
   const empresaId = req.user.empresaId;
 
   try {
-    const pool = await poolPromise;
+    const pool = await poolPromise();
 
     const perfil = req.user.perfil;
     const result = await pool.request()

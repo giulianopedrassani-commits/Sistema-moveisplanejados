@@ -2,6 +2,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     carregarEmpresas();
+    carregarAviso();
 
     // Listener do formulário de criação/edição
     document.getElementById('form-empresa').addEventListener('submit', async (e) => {
@@ -70,12 +71,20 @@ async function carregarEmpresas() {
 
 async function criarEmpresa() {
     const SenhaAdmin = document.getElementById('senha-admin').value;
+    const ConfirmSenhaAdmin = document.getElementById('confirm-senha-admin').value;
 
     // Validação de Senha Forte no Frontend
     const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
-    if (!senhaRegex.test(SenhaAdmin)) {
+    if (!SenhaAdmin || !senhaRegex.test(SenhaAdmin)) {
         const alertMsg = document.getElementById('alert-msg');
         alertMsg.textContent = "A senha deve ter no mínimo 8 caracteres e conter letras e números.";
+        alertMsg.style.display = 'block';
+        return;
+    }
+
+    if (SenhaAdmin !== ConfirmSenhaAdmin) {
+        const alertMsg = document.getElementById('alert-msg');
+        alertMsg.textContent = "As senhas não coincidem.";
         alertMsg.style.display = 'block';
         return;
     }
@@ -110,6 +119,7 @@ async function criarEmpresa() {
 
 async function atualizarEmpresa(id) {
     const SenhaAdmin = document.getElementById('senha-admin').value;
+    const ConfirmSenhaAdmin = document.getElementById('confirm-senha-admin').value;
 
     // Se a senha foi preenchida (edição), valida a força
     if (SenhaAdmin) {
@@ -117,6 +127,13 @@ async function atualizarEmpresa(id) {
         if (!senhaRegex.test(SenhaAdmin)) {
             const alertMsg = document.getElementById('alert-msg');
             alertMsg.textContent = "A nova senha deve ter no mínimo 8 caracteres e conter letras e números.";
+            alertMsg.style.display = 'block';
+            return;
+        }
+
+        if (SenhaAdmin !== ConfirmSenhaAdmin) {
+            const alertMsg = document.getElementById('alert-msg');
+            alertMsg.textContent = "As senhas não coincidem.";
             alertMsg.style.display = 'block';
             return;
         }
@@ -174,6 +191,42 @@ async function toggleStatus(id, novoStatus) {
     }
 }
 
+async function carregarAviso() {
+    try {
+        const aviso = await window.apiFetch('/avisos');
+        if (!aviso) return;
+
+        document.getElementById('aviso-mensagem').value = aviso.Mensagem || '';
+        document.getElementById('aviso-ativo').checked = aviso.Ativo === true;
+    } catch (err) {
+        console.warn('Não foi possível carregar aviso global:', err);
+    }
+}
+
+async function salvarAvisoGlobal() {
+    const Mensagem = document.getElementById('aviso-mensagem').value.trim();
+    const Ativo = document.getElementById('aviso-ativo').checked;
+    const alertBox = document.getElementById('aviso-alert');
+
+    alertBox.style.display = 'none';
+
+    try {
+        await window.apiFetch('/avisos', {
+            method: 'POST',
+            body: JSON.stringify({ Mensagem, Ativo })
+        });
+
+        alertBox.textContent = 'Aviso global salvo com sucesso!';
+        alertBox.className = 'alert success';
+        alertBox.style.display = 'block';
+        setTimeout(() => { alertBox.style.display = 'none'; }, 3500);
+    } catch (err) {
+        alertBox.textContent = 'Erro ao salvar aviso: ' + err.message;
+        alertBox.className = 'alert error';
+        alertBox.style.display = 'block';
+    }
+}
+
 // UI Controls
 function abrirModalNovaEmpresa() {
     document.getElementById('modal-empresa').classList.add('active');
@@ -181,7 +234,9 @@ function abrirModalNovaEmpresa() {
     document.getElementById('form-empresa').reset();
     document.getElementById('empresa-id-edit').value = '';
     document.getElementById('senha-group').style.display = 'block';
+    document.getElementById('confirm-senha-group').style.display = 'block';
     document.getElementById('senha-admin').required = true;
+    document.getElementById('confirm-senha-admin').required = true;
 }
 
 function abrirModalEditar(emp) {
@@ -197,9 +252,12 @@ function abrirModalEditar(emp) {
     
     // Na edição, o campo de senha serve para REDEFINIR a senha caso queira
     document.getElementById('senha-group').style.display = 'block';
+    document.getElementById('confirm-senha-group').style.display = 'block';
     document.getElementById('senha-group').querySelector('label').innerHTML = "Nova Senha <small>(vazio para não alterar)</small>";
     document.getElementById('senha-admin').value = '';
+    document.getElementById('confirm-senha-admin').value = '';
     document.getElementById('senha-admin').required = false;
+    document.getElementById('confirm-senha-admin').required = false;
 }
 
 function fecharModalEmpresa() {
